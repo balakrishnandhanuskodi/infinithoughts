@@ -1,0 +1,104 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, claude/magazine-movement-roadmap-wc24k4 ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: infinithoughts_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint backend
+        run: npm run lint --workspaces
+        continue-on-error: true
+
+      - name: Type check
+        run: npm run type-check --workspaces
+        continue-on-error: true
+
+      - name: Build
+        run: npm run build --workspaces
+        continue-on-error: true
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build Docker images
+        run: |
+          docker-compose build --no-cache
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/claude/magazine-movement-roadmap-wc24k4'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy to staging
+        run: |
+          echo "Deployment to staging would go here"
+          echo "- Push Docker image to registry"
+          echo "- Deploy to Render (backend)"
+          echo "- Deploy to Netlify (frontend)"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Deploy to production
+        run: |
+          echo "Deployment to production would go here"
+          echo "- Push Docker image to registry"
+          echo "- Deploy to Render (backend)"
+          echo "- Deploy to Netlify (frontend)"

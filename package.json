@@ -1,0 +1,27 @@
+{
+  "name": "infinithoughts",
+  "version": "0.0.1",
+  "description": "Digital magazine platform - turning readers into seekers",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "admin-dashboard"
+  ],
+  "scripts": {
+    "dev": "docker-compose up",
+    "dev:down": "docker-compose down",
+    "dev:build": "docker-compose build",
+    "backend": "cd backend && npm run dev",
+    "admin": "cd admin-dashboard && npm run dev",
+    "lint": "npm run lint --workspaces",
+    "type-check": "npm run type-check --workspaces"
+  },
+  "keywords": [
+    "magazine",
+    "digital",
+    "seeker",
+    "transformation"
+  ],
+  "author": "infinithoughts",
+  "license": "MIT"
+}
