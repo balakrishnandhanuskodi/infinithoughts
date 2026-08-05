@@ -27,44 +27,53 @@ app.get('/health', (req, res) => {
 
 // Load routes after env is configured
 (async () => {
-  const articleRoutes = (await import('./routes/articles')).default;
-  const adminRoutes = (await import('./routes/admin')).default;
+  try {
+    console.log('📚 Loading route modules...');
+    const articleRoutes = (await import('./routes/articles')).default;
+    const adminRoutes = (await import('./routes/admin')).default;
+    console.log('✅ Routes loaded successfully');
 
-  // API v1 routes
-  const apiRouter = express.Router();
+    // API v1 routes
+    const apiRouter = express.Router();
 
-  // Article routes
-  apiRouter.use('/articles', articleRoutes);
+    // Article routes
+    apiRouter.use('/articles', articleRoutes);
 
-  // Admin routes
-  apiRouter.use('/admin', adminRoutes);
+    // Admin routes
+    apiRouter.use('/admin', adminRoutes);
 
-  // Welcome message
-  apiRouter.get('/', (req, res) => {
-    res.json({
-      message: 'infinithoughts API v1',
-      endpoints: {
-        articles: '/api/articles',
-        admin: '/api/admin',
-      },
+    // Welcome message
+    apiRouter.get('/', (req, res) => {
+      res.json({
+        message: 'infinithoughts API v1',
+        endpoints: {
+          articles: '/api/articles',
+          admin: '/api/admin',
+        },
+      });
     });
-  });
 
-  app.use('/api', apiRouter);
+    app.use('/api', apiRouter);
+    console.log('✅ API routes mounted at /api');
 
-  // 404 handler
-  app.use((req, res) => {
-    res.status(404).json({ error: 'Not found' });
-  });
-
-  // Error handling
-  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  });
-
-  app.listen(PORT, () => {
-    console.log(`🚀 Backend running on http://localhost:${PORT}`);
-    console.log(`📚 API docs: http://localhost:${PORT}/api`);
-  });
+    // Start server
+    app.listen(PORT, () => {
+      console.log(`🚀 Backend running on http://localhost:${PORT}`);
+      console.log(`📚 API docs: http://localhost:${PORT}/api`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to load routes:', error);
+    process.exit(1);
+  }
 })();
+
+// 404 handler - must be after all other routes
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Error handling - must be last
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
