@@ -3,15 +3,28 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
-// Load environment variables
-const envPath = require('path').resolve(__dirname, '../../.env');
+// Load environment variables from .env file
+const envPath = path.resolve(__dirname, '../../.env');
+console.log('🔍 Looking for .env at:', envPath);
 if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
+  console.log('✅ Loading .env file');
+  const result = dotenv.config({ path: envPath });
+  if (result.error) {
+    console.error('⚠️  Error loading .env:', result.error);
+  }
+} else {
+  console.log('⚠️  .env file not found at', envPath);
 }
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost/infinithoughts';
+const DATABASE_URL = process.env.DATABASE_URL;
 
-console.log('📍 Connecting to:', DATABASE_URL.replace(/:[^@]*@/, ':***@'));
+if (!DATABASE_URL) {
+  console.error('❌ ERROR: DATABASE_URL not set in environment or .env file');
+  console.error('Please create backend/.env with your database connection string');
+  process.exit(1);
+}
+
+console.log('📍 Connecting to:', DATABASE_URL.substring(0, 50) + '...');
 
 const pool = new Pool({
   connectionString: DATABASE_URL,
