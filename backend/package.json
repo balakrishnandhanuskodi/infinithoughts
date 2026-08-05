@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "migrate": "tsx src/db/migrations/run.ts",
     "import-samples": "tsx scripts/import-sample-articles.ts",
+    "test:db": "tsx scripts/test-db-connection.ts",
     "test:api": "bash scripts/test-api.sh",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit"
