@@ -25,22 +25,40 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Diagnostic endpoint
+app.get('/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    port: PORT,
+    node_env: process.env.NODE_ENV,
+    database_url: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 40)}...` : 'UNDEFINED',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Load routes after env is configured
 (async () => {
   try {
-    console.log('📚 Loading route modules...');
+    console.log('📚 [index.ts] Starting route loading process...');
+
+    console.log('📚 [index.ts] Importing article routes...');
     const articleRoutes = (await import('./routes/articles')).default;
+    console.log('✅ [index.ts] Article routes imported successfully');
+
+    console.log('📚 [index.ts] Importing admin routes...');
     const adminRoutes = (await import('./routes/admin')).default;
-    console.log('✅ Routes loaded successfully');
+    console.log('✅ [index.ts] Admin routes imported successfully');
 
     // API v1 routes
     const apiRouter = express.Router();
 
     // Article routes
     apiRouter.use('/articles', articleRoutes);
+    console.log('✅ [index.ts] Article routes mounted at /api/articles');
 
     // Admin routes
     apiRouter.use('/admin', adminRoutes);
+    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
 
     // Welcome message
     apiRouter.get('/', (req, res) => {
@@ -52,17 +70,28 @@ app.get('/health', (req, res) => {
         },
       });
     });
+    console.log('✅ [index.ts] API welcome endpoint registered');
 
     app.use('/api', apiRouter);
-    console.log('✅ API routes mounted at /api');
+    console.log('✅ [index.ts] All API routes mounted at /api');
 
     // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Backend running on http://localhost:${PORT}`);
-      console.log(`📚 API docs: http://localhost:${PORT}/api`);
+    const server = app.listen(PORT, () => {
+      console.log(`🚀 [index.ts] Backend running on http://localhost:${PORT}`);
+      console.log(`📚 [index.ts] API docs: http://localhost:${PORT}/api`);
+      console.log(`🏥 [index.ts] Health check: http://localhost:${PORT}/health`);
+    });
+
+    server.on('error', (err: any) => {
+      console.error('❌ [index.ts] Server error:', err);
+      process.exit(1);
     });
   } catch (error) {
-    console.error('❌ Failed to load routes:', error);
+    console.error('❌ [index.ts] Failed to load routes:', error);
+    if (error instanceof Error) {
+      console.error('❌ [index.ts] Error message:', error.message);
+      console.error('❌ [index.ts] Error stack:', error.stack);
+    }
     process.exit(1);
   }
 })();
