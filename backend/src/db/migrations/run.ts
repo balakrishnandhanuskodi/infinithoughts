@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
 // Load environment variables
-const envPath = path.join(__dirname, '../../.env');
+const envPath = require('path').resolve(__dirname, '../../.env');
 if (fs.existsSync(envPath)) {
   dotenv.config({ path: envPath });
 }
