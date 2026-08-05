@@ -4,6 +4,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Create issues table
 CREATE TABLE IF NOT EXISTS issues (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   issue_number INT NOT NULL,
   month VARCHAR(20),
   year INT NOT NULL,
@@ -17,6 +18,7 @@ CREATE TABLE IF NOT EXISTS issues (
 
 -- Create users table
 CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255),
   name VARCHAR(255),
@@ -27,6 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Create articles table
 CREATE TABLE IF NOT EXISTS articles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title VARCHAR(255) NOT NULL,
   slug VARCHAR(255) UNIQUE NOT NULL,
   excerpt TEXT NOT NULL,
@@ -50,6 +53,7 @@ CREATE TABLE IF NOT EXISTS articles (
 
 -- Create article_status_history table for audit trail
 CREATE TABLE IF NOT EXISTS article_status_history (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
   old_status VARCHAR(50),
   new_status VARCHAR(50) NOT NULL,
@@ -60,6 +64,7 @@ CREATE TABLE IF NOT EXISTS article_status_history (
 
 -- Create tags table
 CREATE TABLE IF NOT EXISTS tags (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name VARCHAR(100) NOT NULL UNIQUE,
   slug VARCHAR(100) UNIQUE,
   created_at TIMESTAMP DEFAULT NOW()
@@ -74,6 +79,7 @@ CREATE TABLE IF NOT EXISTS article_tags (
 
 -- Create article_comments table
 CREATE TABLE IF NOT EXISTS article_comments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   article_id UUID NOT NULL REFERENCES articles(id) ON DELETE CASCADE,
   author_id UUID NOT NULL REFERENCES users(id),
   comment_text TEXT NOT NULL,
@@ -102,6 +108,7 @@ CREATE TABLE IF NOT EXISTS articles_xml_raw (
 
 -- Create flipbook_pages table
 CREATE TABLE IF NOT EXISTS flipbook_pages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   issue_id UUID NOT NULL REFERENCES issues(id),
   page_number INT NOT NULL,
   thumbnail_url TEXT,
@@ -113,6 +120,7 @@ CREATE TABLE IF NOT EXISTS flipbook_pages (
 
 -- Create audit_log table
 CREATE TABLE IF NOT EXISTS audit_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id),
   action VARCHAR(50) NOT NULL,
   resource_type VARCHAR(50) NOT NULL,
