@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS xml_import_logs (
 
 -- Create articles_xml_raw table for backup
 CREATE TABLE IF NOT EXISTS articles_xml_raw (
-  article_id UUID PRIMARY KEY UNIQUE REFERENCES articles(id) ON DELETE CASCADE,
+  article_id UUID PRIMARY KEY REFERENCES articles(id) ON DELETE CASCADE,
   xml_content TEXT NOT NULL,
   import_batch_id UUID REFERENCES xml_import_logs(batch_id),
   created_at TIMESTAMP DEFAULT NOW()
