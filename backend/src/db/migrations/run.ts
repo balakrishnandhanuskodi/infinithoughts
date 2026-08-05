@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
 // Load environment variables from .env file
-const envPath = path.resolve(__dirname, '../../.env');
+const envPath = path.resolve(__dirname, '../../../.env');
 console.log('🔍 Looking for .env at:', envPath);
 if (fs.existsSync(envPath)) {
   console.log('✅ Loading .env file');
