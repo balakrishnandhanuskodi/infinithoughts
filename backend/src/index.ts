@@ -2,8 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import articleRoutes from './routes/articles';
-import adminRoutes from './routes/admin';
 
 const envPath = path.resolve(__dirname, '../.env');
 console.log('📁 Loading .env from:', envPath);
@@ -12,6 +10,10 @@ console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 if (result.error) {
   console.error('❌ Error loading .env:', result.error);
 }
+
+// Import routes AFTER dotenv.config()
+import articleRoutes from './routes/articles';
+import adminRoutes from './routes/admin';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
