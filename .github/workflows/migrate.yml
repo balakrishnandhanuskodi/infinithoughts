@@ -1,0 +1,46 @@
+name: Database Migration
+
+on:
+  push:
+    branches:
+      - claude/magazine-movement-roadmap-wc24k4
+    paths:
+      - 'backend/src/db/migrations/**'
+      - '.github/workflows/migrate.yml'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run -w backend migrate
+
+      - name: Import sample data
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npm run -w backend import-samples
+        continue-on-error: true
+
+      - name: Migration Status
+        if: success()
+        run: echo "✅ Database migration completed successfully!"
+
+      - name: Migration Failed
+        if: failure()
+        run: echo "❌ Database migration failed. Check logs above."
