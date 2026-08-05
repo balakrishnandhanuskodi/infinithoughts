@@ -1,6 +1,21 @@
 import fs from 'fs';
 import path from 'path';
-import { pool } from '../client';
+import dotenv from 'dotenv';
+import { Pool } from 'pg';
+
+// Load environment variables
+const envPath = path.join(__dirname, '../../.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
+}
+
+const DATABASE_URL = process.env.DATABASE_URL || 'postgres://localhost/infinithoughts';
+
+console.log('📍 Connecting to:', DATABASE_URL.replace(/:[^@]*@/, ':***@'));
+
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+});
 
 async function runMigrations() {
   try {
