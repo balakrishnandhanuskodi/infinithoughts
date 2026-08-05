@@ -1,0 +1,17 @@
+[build]
+command = "npm run build --workspace=@infinithoughts/admin-dashboard"
+publish = "admin-dashboard/dist"
+base = "."
+
+[build.environment]
+# Railway backend URL for production
+VITE_API_URL = "https://infinithoughts-prod.up.railway.app/api"
+
+# Node version
+NODE_VERSION = "20"
+
+[[redirects]]
+# Single Page App redirect
+from = "/*"
+to = "/index.html"
+status = 200

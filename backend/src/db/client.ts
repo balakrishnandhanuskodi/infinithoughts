@@ -1,6 +1,10 @@
 import { Pool } from 'pg';
 
-console.log('🔌 [db/client.ts] Creating pool with DATABASE_URL:', process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 40)}...` : 'UNDEFINED');
+if (!process.env.DATABASE_URL) {
+  throw new Error('❌ [db/client.ts] DATABASE_URL environment variable is not set. Please configure it before starting the server.');
+}
+
+console.log('🔌 [db/client.ts] Creating pool with DATABASE_URL:', `${process.env.DATABASE_URL.substring(0, 40)}...`);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
