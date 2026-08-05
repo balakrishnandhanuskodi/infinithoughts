@@ -19,6 +19,8 @@ export interface ArticleInput {
   publication_date?: Date | string;
   created_date?: Date | string;
   status?: string;
+  current_reviewer_id?: string;
+  published_at?: Date | string;
 }
 
 export interface ArticleOutput extends ArticleInput {
