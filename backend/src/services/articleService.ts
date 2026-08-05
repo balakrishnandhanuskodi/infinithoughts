@@ -6,7 +6,7 @@ export interface ArticleInput {
   slug: string;
   excerpt: string;
   content_html: string;
-  content_json: any;
+  content_json?: any;
   issue_id: string;
   reading_time_minutes?: number;
   word_count?: number;
@@ -16,8 +16,9 @@ export interface ArticleInput {
   source: 'xml' | 'cms';
   xml_file_path?: string;
   author_id?: string;
-  publication_date?: Date;
-  created_date?: Date;
+  publication_date?: Date | string;
+  created_date?: Date | string;
+  status?: string;
 }
 
 export interface ArticleOutput extends ArticleInput {

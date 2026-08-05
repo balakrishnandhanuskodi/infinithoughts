@@ -11,7 +11,7 @@ const CreateArticleSchema = z.object({
   slug: z.string().min(1),
   excerpt: z.string().min(1),
   content_html: z.string().min(1),
-  content_json: z.any(),
+  content_json: z.any().optional(),
   issue_id: z.string().uuid(),
   reading_time_minutes: z.number().optional(),
   word_count: z.number().optional(),
@@ -23,6 +23,7 @@ const CreateArticleSchema = z.object({
   author_id: z.string().uuid().optional(),
   publication_date: z.string().datetime().optional(),
   created_date: z.string().datetime().optional(),
+  status: z.string().optional(),
 });
 
 const UpdateArticleSchema = CreateArticleSchema.partial();
