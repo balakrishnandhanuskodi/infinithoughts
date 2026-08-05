@@ -2,8 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
-import articleRoutes from './routes/articles';
-import adminRoutes from './routes/admin';
 
 // Load env FIRST, before anything else
 const envPath = path.resolve(__dirname, '../.env');
@@ -27,40 +25,46 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// API v1 routes
-const apiRouter = express.Router();
+// Load routes after env is configured
+(async () => {
+  const articleRoutes = (await import('./routes/articles')).default;
+  const adminRoutes = (await import('./routes/admin')).default;
 
-// Article routes
-apiRouter.use('/articles', articleRoutes);
+  // API v1 routes
+  const apiRouter = express.Router();
 
-// Admin routes
-apiRouter.use('/admin', adminRoutes);
+  // Article routes
+  apiRouter.use('/articles', articleRoutes);
 
-// Welcome message
-apiRouter.get('/', (req, res) => {
-  res.json({
-    message: 'infinithoughts API v1',
-    endpoints: {
-      articles: '/api/articles',
-      admin: '/api/admin',
-    },
+  // Admin routes
+  apiRouter.use('/admin', adminRoutes);
+
+  // Welcome message
+  apiRouter.get('/', (req, res) => {
+    res.json({
+      message: 'infinithoughts API v1',
+      endpoints: {
+        articles: '/api/articles',
+        admin: '/api/admin',
+      },
+    });
   });
-});
 
-app.use('/api', apiRouter);
+  app.use('/api', apiRouter);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
+  // 404 handler
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Not found' });
+  });
 
-// Error handling
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
+  // Error handling
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error('Error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Backend running on http://localhost:${PORT}`);
-  console.log(`📚 API docs: http://localhost:${PORT}/api`);
-});
+  app.listen(PORT, () => {
+    console.log(`🚀 Backend running on http://localhost:${PORT}`);
+    console.log(`📚 API docs: http://localhost:${PORT}/api`);
+  });
+})();
