@@ -5,12 +5,23 @@ import path from 'path';
 
 // Load env FIRST, before anything else
 const envPath = path.resolve(__dirname, '../.env');
-console.log('📁 Loading .env from:', envPath);
-const result = dotenv.config({ path: envPath });
-console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
-if (result.error) {
-  console.error('❌ Error loading .env:', result.error);
+console.log('📁 Looking for .env file at:', envPath);
+try {
+  const result = dotenv.config({ path: envPath });
+  if (result.error) {
+    const err = result.error as any;
+    if (err.code === 'ENOENT') {
+      console.log('ℹ️  No .env file found (expected in production - using Railway environment variables)');
+    } else {
+      console.error('❌ Error loading .env:', result.error);
+    }
+  } else {
+    console.log('✅ Loaded .env file successfully');
+  }
+} catch (error) {
+  console.log('ℹ️  .env file not found (expected in production - using Railway environment variables)');
 }
+console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
