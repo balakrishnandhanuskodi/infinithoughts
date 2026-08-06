@@ -5,15 +5,27 @@ import path from 'path';
 
 // Load env FIRST, before anything else
 const envPath = path.resolve(__dirname, '../.env');
-console.log('📁 Loading .env from:', envPath);
-const result = dotenv.config({ path: envPath });
-console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
-if (result.error) {
-  console.error('❌ Error loading .env:', result.error);
+console.log('📁 Looking for .env file at:', envPath);
+try {
+  const result = dotenv.config({ path: envPath });
+  if (result.error) {
+    const err = result.error as any;
+    if (err.code === 'ENOENT') {
+      console.log('ℹ️  No .env file found (expected in production - using Railway environment variables)');
+    } else {
+      console.error('❌ Error loading .env:', result.error);
+    }
+  } else {
+    console.log('✅ Loaded .env file successfully');
+  }
+} catch (error) {
+  console.log('ℹ️  .env file not found (expected in production - using Railway environment variables)');
 }
+console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+// Use PORT from environment (set by Railway), fallback to 3000 (Railway's default port detection)
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
 app.use(cors());
@@ -25,22 +37,40 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Load routes after env is configured
+// Diagnostic endpoint
+app.get('/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    port: PORT,
+    node_env: process.env.NODE_ENV,
+    database_url: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 40)}...` : 'UNDEFINED',
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Load routes and start server
 (async () => {
   try {
-    console.log('📚 Loading route modules...');
+    console.log('📚 [index.ts] Starting route loading process...');
+
+    console.log('📚 [index.ts] Importing article routes...');
     const articleRoutes = (await import('./routes/articles')).default;
+    console.log('✅ [index.ts] Article routes imported successfully');
+
+    console.log('📚 [index.ts] Importing admin routes...');
     const adminRoutes = (await import('./routes/admin')).default;
-    console.log('✅ Routes loaded successfully');
+    console.log('✅ [index.ts] Admin routes imported successfully');
 
     // API v1 routes
     const apiRouter = express.Router();
 
     // Article routes
     apiRouter.use('/articles', articleRoutes);
+    console.log('✅ [index.ts] Article routes mounted at /api/articles');
 
     // Admin routes
     apiRouter.use('/admin', adminRoutes);
+    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
 
     // Welcome message
     apiRouter.get('/', (req, res) => {
@@ -52,28 +82,56 @@ app.get('/health', (req, res) => {
         },
       });
     });
+    console.log('✅ [index.ts] API welcome endpoint registered');
 
     app.use('/api', apiRouter);
-    console.log('✅ API routes mounted at /api');
+    console.log('✅ [index.ts] All API routes mounted at /api');
+
+    // 404 handler - must be after all other routes
+    app.use((req, res) => {
+      console.warn(`[index.ts] 404 Not Found: ${req.method} ${req.path}`);
+      res.status(404).json({ error: 'Not found' });
+    });
+    console.log('✅ [index.ts] 404 handler registered');
+
+    // Error handling - must be last
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      console.error('❌ [index.ts] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    });
+    console.log('✅ [index.ts] Error handler registered');
 
     // Start server
-    app.listen(PORT, () => {
-      console.log(`🚀 Backend running on http://localhost:${PORT}`);
-      console.log(`📚 API docs: http://localhost:${PORT}/api`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 [index.ts] Backend running on 0.0.0.0:${PORT}`);
+      console.log(`📚 [index.ts] API docs: http://localhost:${PORT}/api`);
+      console.log(`🏥 [index.ts] Health check: http://localhost:${PORT}/health`);
     });
+
+    // Handle server errors
+    server.on('error', (err: any) => {
+      console.error('❌ [index.ts] Server error:', err.message);
+      console.error('❌ [index.ts] Error code:', err.code);
+      console.error('❌ [index.ts] Full error:', err);
+      process.exit(1);
+    });
+
+    // Handle graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('📛 [index.ts] SIGTERM received, shutting down gracefully...');
+      server.close(() => {
+        console.log('✅ [index.ts] Server closed');
+        process.exit(0);
+      });
+    });
+
+    console.log('✅ [index.ts] Server initialization complete');
   } catch (error) {
-    console.error('❌ Failed to load routes:', error);
+    console.error('❌ [index.ts] Failed to start server:', error);
+    if (error instanceof Error) {
+      console.error('❌ [index.ts] Error message:', error.message);
+      console.error('❌ [index.ts] Error stack:', error.stack);
+    }
     process.exit(1);
   }
 })();
-
-// 404 handler - must be after all other routes
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
-// Error handling - must be last
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
