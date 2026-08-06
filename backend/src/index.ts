@@ -24,7 +24,8 @@ try {
 console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '3001', 10);
+// Use PORT from environment (set by Railway), fallback to 3000 (Railway's default port detection)
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
 app.use(cors());
