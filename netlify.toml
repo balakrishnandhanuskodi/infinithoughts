@@ -5,7 +5,7 @@ base = "."
 
 [build.environment]
 # Railway backend URL for production
-VITE_API_URL = "https://infinithoughts-prod.up.railway.app/api"
+VITE_API_URL = "https://infinithoughtsbackend-production.up.railway.app/api"
 
 # Node version
 NODE_VERSION = "20"
