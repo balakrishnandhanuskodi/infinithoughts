@@ -87,6 +87,20 @@ app.get('/status', (req, res) => {
     app.use('/api', apiRouter);
     console.log('✅ [index.ts] All API routes mounted at /api');
 
+    // 404 handler - must be after all other routes
+    app.use((req, res) => {
+      console.warn(`[index.ts] 404 Not Found: ${req.method} ${req.path}`);
+      res.status(404).json({ error: 'Not found' });
+    });
+    console.log('✅ [index.ts] 404 handler registered');
+
+    // Error handling - must be last
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      console.error('❌ [index.ts] Error:', err);
+      res.status(500).json({ error: 'Internal server error' });
+    });
+    console.log('✅ [index.ts] Error handler registered');
+
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 [index.ts] Backend running on 0.0.0.0:${PORT}`);
@@ -121,14 +135,3 @@ app.get('/status', (req, res) => {
     process.exit(1);
   }
 })();
-
-// 404 handler - must be after all other routes
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
-// Error handling - must be last
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
