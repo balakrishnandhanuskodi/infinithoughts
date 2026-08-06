@@ -24,7 +24,7 @@ try {
 console.log('✅ DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(process.env.PORT || '3001', 10);
 
 // Middleware
 app.use(cors());
@@ -47,7 +47,7 @@ app.get('/status', (req, res) => {
   });
 });
 
-// Load routes after env is configured
+// Load routes and start server
 (async () => {
   try {
     console.log('📚 [index.ts] Starting route loading process...');
@@ -87,18 +87,32 @@ app.get('/status', (req, res) => {
     console.log('✅ [index.ts] All API routes mounted at /api');
 
     // Start server
-    const server = app.listen(PORT, () => {
-      console.log(`🚀 [index.ts] Backend running on http://localhost:${PORT}`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 [index.ts] Backend running on 0.0.0.0:${PORT}`);
       console.log(`📚 [index.ts] API docs: http://localhost:${PORT}/api`);
       console.log(`🏥 [index.ts] Health check: http://localhost:${PORT}/health`);
     });
 
+    // Handle server errors
     server.on('error', (err: any) => {
-      console.error('❌ [index.ts] Server error:', err);
+      console.error('❌ [index.ts] Server error:', err.message);
+      console.error('❌ [index.ts] Error code:', err.code);
+      console.error('❌ [index.ts] Full error:', err);
       process.exit(1);
     });
+
+    // Handle graceful shutdown
+    process.on('SIGTERM', () => {
+      console.log('📛 [index.ts] SIGTERM received, shutting down gracefully...');
+      server.close(() => {
+        console.log('✅ [index.ts] Server closed');
+        process.exit(0);
+      });
+    });
+
+    console.log('✅ [index.ts] Server initialization complete');
   } catch (error) {
-    console.error('❌ [index.ts] Failed to load routes:', error);
+    console.error('❌ [index.ts] Failed to start server:', error);
     if (error instanceof Error) {
       console.error('❌ [index.ts] Error message:', error.message);
       console.error('❌ [index.ts] Error stack:', error.stack);
