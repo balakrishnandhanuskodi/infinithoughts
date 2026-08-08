@@ -61,6 +61,10 @@ app.get('/status', (req, res) => {
     const adminRoutes = (await import('./routes/admin')).default;
     console.log('✅ [index.ts] Admin routes imported successfully');
 
+    console.log('📚 [index.ts] Importing issue upload routes...');
+    const issueUploadRoutes = (await import('./routes/issueUpload')).default;
+    console.log('✅ [index.ts] Issue upload routes imported successfully');
+
     // API v1 routes
     const apiRouter = express.Router();
 
@@ -71,6 +75,10 @@ app.get('/status', (req, res) => {
     // Admin routes
     apiRouter.use('/admin', adminRoutes);
     console.log('✅ [index.ts] Admin routes mounted at /api/admin');
+
+    // Issue upload routes
+    apiRouter.use('/admin/issues/upload', issueUploadRoutes);
+    console.log('✅ [index.ts] Issue upload routes mounted at /api/admin/issues/upload');
 
     // Welcome message
     apiRouter.get('/', (req, res) => {
