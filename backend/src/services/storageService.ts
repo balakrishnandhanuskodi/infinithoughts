@@ -1,5 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
+import { createClient } from '@supabase/supabase-js';
+
+(global as any).WebSocket = WebSocket;
 
 if (!process.env.SUPABASE_URL) {
   throw new Error('❌ SUPABASE_URL environment variable is not set');
@@ -24,8 +26,6 @@ const supabase = createClient(
     },
   }
 );
-
-(global as any).WebSocket = WebSocket;
 
 const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || 'magazines';
 
