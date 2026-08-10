@@ -30,7 +30,30 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
 // Middleware
-app.use(cors());
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests from localhost, Netlify deployments, and Railway
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      /netlify\.app$/, // Allow all Netlify subdomains
+      /railway\.app$/, // Allow all Railway subdomains
+    ];
+
+    if (!origin || allowedOrigins.some(allowed =>
+      typeof allowed === 'string' ? allowed === origin : allowed.test(origin)
+    )) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
