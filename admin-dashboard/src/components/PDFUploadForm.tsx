@@ -38,8 +38,8 @@ export const PDFUploadForm: React.FC<PDFUploadFormProps> = ({
         setFile(null);
         return;
       }
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        setError('File size must be less than 5MB');
+      if (selectedFile.size > 15 * 1024 * 1024) {
+        setError('File size must be less than 15MB');
         setFile(null);
         return;
       }
