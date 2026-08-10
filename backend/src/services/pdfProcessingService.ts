@@ -11,7 +11,7 @@ export class PDFProcessingService {
       const data = await pdfParse(buffer);
       return {
         pages: data.numpages,
-        text: data.text,
+        text: data.text || '',
       };
     } catch (error) {
       throw new Error(`Failed to parse PDF: ${error}`);
