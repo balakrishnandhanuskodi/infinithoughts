@@ -8,10 +8,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
-// Configure multer for file upload (5MB max)
+// Configure multer for file upload (15MB max)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB
   fileFilter: (req, file, cb) => {
     if (file.mimetype !== 'application/pdf') {
       cb(new Error('Only PDF files are allowed'));
@@ -133,7 +133,7 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
     }
 
     if (error.message.includes('file size')) {
-      return res.status(413).json({ error: 'File size exceeds 5MB limit' });
+      return res.status(413).json({ error: 'File size exceeds 15MB limit' });
     }
 
     res.status(500).json({ error: error.message || 'Failed to upload PDF' });
