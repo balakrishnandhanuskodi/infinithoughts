@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
+// v1.0.0 - Phase 2 PDF Upload
+
 // Load env FIRST, before anything else
 const envPath = path.resolve(__dirname, '../.env');
 console.log('📁 Looking for .env file at:', envPath);
