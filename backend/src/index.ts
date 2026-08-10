@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// v1.0.1 - Phase 2 PDF Upload with Issue Routes
+// v1.0.1 - Phase 2 PDF Upload with Issue Routes and Migrations
 
 // Load env FIRST, before anything else
 const envPath = path.resolve(__dirname, '../.env');
