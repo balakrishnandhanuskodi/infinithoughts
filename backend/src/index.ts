@@ -103,13 +103,13 @@ app.get('/status', (req, res) => {
     apiRouter.use('/articles', articleRoutes);
     console.log('✅ [index.ts] Article routes mounted at /api/articles');
 
-    // Admin routes
-    apiRouter.use('/admin', adminRoutes);
-    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
-
-    // Issue upload routes
+    // Issue upload routes (MUST come before /admin to avoid being caught by admin router)
     apiRouter.use('/admin/issues/upload', issueUploadRoutes);
     console.log('✅ [index.ts] Issue upload routes mounted at /api/admin/issues/upload');
+
+    // Admin routes (general - catches remaining /admin/* routes)
+    apiRouter.use('/admin', adminRoutes);
+    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
 
     // Welcome message
     apiRouter.get('/', (req, res) => {
