@@ -78,6 +78,12 @@ app.get('/status', (req, res) => {
   try {
     console.log('📚 [index.ts] Starting route loading process...');
 
+    // Run database migrations before loading routes
+    console.log('🔧 [index.ts] Running database migrations...');
+    const { runMigrations } = await import('./db/runMigrations');
+    await runMigrations();
+    console.log('✅ [index.ts] Database migrations completed');
+
     console.log('📚 [index.ts] Importing article routes...');
     const articleRoutes = (await import('./routes/articles')).default;
     console.log('✅ [index.ts] Article routes imported successfully');
