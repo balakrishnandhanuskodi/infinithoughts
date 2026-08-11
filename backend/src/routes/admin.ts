@@ -5,8 +5,12 @@ import { v4 as uuidv4 } from 'uuid';
 import pool from '../db/client';
 import articleService from '../services/articleService';
 import xmlParser from '../services/xmlParser';
+import issueUploadRoutes from './issueUpload';
 
 const router = Router();
+
+// Mount issue upload routes at /issues/upload
+router.use('/issues/upload', issueUploadRoutes);
 
 // POST /api/admin/import-xml - Bulk import XML articles
 router.post('/import-xml', async (req: Request, res: Response) => {
