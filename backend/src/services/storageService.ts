@@ -1,4 +1,7 @@
+import WebSocket from 'ws';
 import { createClient } from '@supabase/supabase-js';
+
+(global as any).WebSocket = WebSocket;
 
 if (!process.env.SUPABASE_URL) {
   throw new Error('❌ SUPABASE_URL environment variable is not set');
@@ -10,7 +13,18 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    realtime: {
+      params: {
+        eventsPerSecond: 0,
+      },
+    },
+    global: {
+      fetch: fetch,
+      headers: {},
+    },
+  }
 );
 
 const BUCKET_NAME = process.env.SUPABASE_STORAGE_BUCKET || 'magazines';
