@@ -23,9 +23,9 @@ const upload = multer({
 
 // Validation schema
 const CreateIssueSchema = z.object({
-  issue_number: z.number().positive(),
+  issue_number: z.coerce.number().positive(),
   month: z.string().optional(),
-  year: z.number().min(2000).max(2100),
+  year: z.coerce.number().min(2000).max(2100),
 });
 
 /**
