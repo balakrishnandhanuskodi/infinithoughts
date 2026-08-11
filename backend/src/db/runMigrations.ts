@@ -15,9 +15,17 @@ export async function runMigrations() {
       throw new Error(`Cannot run migrations: database connection failed - ${connError.message}`);
     }
 
-    const migrationsDir = path.join(__dirname, 'migrations');
+    // Look for migrations in src directory (not compiled dist)
+    // __dirname will be dist/db, so we go up to src/db
+    const migrationsDir = path.join(__dirname, '..', '..', 'src', 'db', 'migrations');
+
+    // Fallback to dist if src doesn't exist
+    const migrationsDirFallback = path.join(__dirname, 'migrations');
+    const actualDir = fs.existsSync(migrationsDir) ? migrationsDir : migrationsDirFallback;
+
+    console.log(`📂 [migrations] Looking for migrations in: ${actualDir}`);
     const sqlFiles = fs
-      .readdirSync(migrationsDir)
+      .readdirSync(actualDir)
       .filter(f => f.endsWith('.sql'))
       .sort();
 
@@ -29,7 +37,7 @@ export async function runMigrations() {
     console.log(`📝 [migrations] Found ${sqlFiles.length} migration(s) to process`);
 
     for (const file of sqlFiles) {
-      const filePath = path.join(migrationsDir, file);
+      const filePath = path.join(actualDir, file);
       const sql = fs.readFileSync(filePath, 'utf-8');
 
       try {
