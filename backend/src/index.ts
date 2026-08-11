@@ -92,6 +92,10 @@ app.get('/status', (req, res) => {
     const adminRoutes = (await import('./routes/admin')).default;
     console.log('✅ [index.ts] Admin routes imported successfully');
 
+    console.log('📚 [index.ts] Importing issue upload routes...');
+    const issueUploadRoutes = (await import('./routes/issueUpload')).default;
+    console.log('✅ [index.ts] Issue upload routes imported successfully');
+
     // API v1 routes
     const apiRouter = express.Router();
 
@@ -99,9 +103,13 @@ app.get('/status', (req, res) => {
     apiRouter.use('/articles', articleRoutes);
     console.log('✅ [index.ts] Article routes mounted at /api/articles');
 
-    // Admin routes (includes issue upload routes at /admin/issues/upload)
+    // Issue upload routes (mount FIRST, before general admin routes)
+    apiRouter.use('/admin/issues/upload', issueUploadRoutes);
+    console.log('✅ [index.ts] Issue upload routes mounted at /api/admin/issues/upload');
+
+    // Admin routes (general - catches remaining /admin/* routes)
     apiRouter.use('/admin', adminRoutes);
-    console.log('✅ [index.ts] Admin routes mounted at /api/admin (includes /admin/issues/upload)');
+    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
 
     // Welcome message
     apiRouter.get('/', (req, res) => {
