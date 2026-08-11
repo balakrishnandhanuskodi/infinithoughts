@@ -34,9 +34,7 @@
     "uuid": "^9.0.1",
     "ws": "^8.21.3",
     "xml2js": "^0.6.2",
-    "zod": "^3.22.4",
-    "canvas": "^2.11.2",
-    "pdfjs-dist": "^3.11.174"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.4",
