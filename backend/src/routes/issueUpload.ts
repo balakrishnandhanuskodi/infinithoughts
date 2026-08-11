@@ -3,6 +3,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import storageService from '../services/storageService';
 import pdfProcessingService from '../services/pdfProcessingService';
+import pageExtractionService from '../services/pageExtractionService';
 import pool from '../db/client';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -98,6 +99,40 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
       'COMPLETED',
       `Successfully uploaded ${metadata.pages} pages`
     );
+
+    // Extract pages asynchronously (don't wait for completion)
+    console.log(`⚙️  [issueUpload] Starting page extraction (async)...`);
+    pageExtractionService
+      .extractPagesAsImages(req.file.buffer, issueId, issue_number, year)
+      .then(async (result) => {
+        console.log(`✅ [issueUpload] Page extraction completed: ${result.extractedPages.length} pages`);
+        // Update issue status to COMPLETED after pages are extracted
+        await pool.query(
+          `UPDATE issues SET pdf_status = 'COMPLETED', updated_at = NOW() WHERE id = $1`,
+          [issueId]
+        );
+        await pdfProcessingService.logProcessingStep(
+          issueId,
+          'PAGES_EXTRACTED',
+          'COMPLETED',
+          `Extracted ${result.extractedPages.length} pages from PDF`
+        );
+      })
+      .catch(async (error) => {
+        console.error(`❌ [issueUpload] Page extraction failed:`, error);
+        // Update issue status to FAILED if extraction fails
+        await pool.query(
+          `UPDATE issues SET pdf_status = 'FAILED', processing_error = $1, updated_at = NOW() WHERE id = $2`,
+          [error.message, issueId]
+        );
+        await pdfProcessingService.logProcessingStep(
+          issueId,
+          'PAGES_EXTRACTION_FAILED',
+          'FAILED',
+          undefined,
+          error.message
+        );
+      });
 
     console.log(`✅ [issueUpload] Issue created successfully: ${issueId}`);
 
