@@ -1,11 +1,12 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { createCanvas } from 'canvas';
+import path from 'path';
 import storageService from './storageService';
 import pdfProcessingService from './pdfProcessingService';
 
 // Set up PDF.js worker
-const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.js');
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+const pdfjsWorkerPath = path.join(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.js');
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerPath;
 
 export class PageExtractionService {
   /**
