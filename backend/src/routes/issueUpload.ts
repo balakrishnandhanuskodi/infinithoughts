@@ -163,4 +163,98 @@ router.get('/:id/pages', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * GET /api/admin/issues
+ * List all uploaded issues with their status
+ */
+router.get('/', async (req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT
+        id,
+        issue_number,
+        month,
+        year,
+        pdf_filename,
+        pdf_status,
+        total_pages,
+        pdf_url,
+        created_at
+      FROM issues
+      ORDER BY year DESC, issue_number DESC
+    `;
+    const result = await pool.query(query);
+
+    res.json({
+      total: result.rows.length,
+      issues: result.rows,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/admin/issues/:id
+ * Get single issue details with PDF verification
+ */
+router.get('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const query = `
+      SELECT
+        id,
+        issue_number,
+        month,
+        year,
+        pdf_filename,
+        pdf_status,
+        total_pages,
+        pdf_url,
+        pdf_size_bytes,
+        processing_error,
+        created_at,
+        updated_at
+      FROM issues
+      WHERE id = $1
+    `;
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
+    const issue = result.rows[0];
+
+    // Verify PDF exists in storage
+    let storageVerified = false;
+    if (issue.pdf_url) {
+      try {
+        // Try to access the public URL
+        const publicUrl = issue.pdf_url;
+        storageVerified = publicUrl.includes(process.env.SUPABASE_URL);
+      } catch (err) {
+        storageVerified = false;
+      }
+    }
+
+    // Get flipbook pages
+    const pagesQuery = `
+      SELECT COUNT(*) as page_count FROM flipbook_pages WHERE issue_id = $1
+    `;
+    const pagesResult = await pool.query(pagesQuery, [id]);
+    const pageCount = parseInt(pagesResult.rows[0].page_count);
+
+    res.json({
+      issue: {
+        ...issue,
+        storage_verified: storageVerified,
+        flipbook_pages_count: pageCount,
+      },
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
