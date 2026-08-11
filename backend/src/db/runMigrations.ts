@@ -6,6 +6,15 @@ export async function runMigrations() {
   try {
     console.log('🔄 [migrations] Checking for pending migrations...');
 
+    // Test database connection first
+    try {
+      const result = await pool.query('SELECT NOW()');
+      console.log('✅ [migrations] Database connection verified');
+    } catch (connError: any) {
+      console.error('❌ [migrations] Database connection failed:', connError.message);
+      throw new Error(`Cannot run migrations: database connection failed - ${connError.message}`);
+    }
+
     const migrationsDir = path.join(__dirname, 'migrations');
     const sqlFiles = fs
       .readdirSync(migrationsDir)
@@ -17,6 +26,8 @@ export async function runMigrations() {
       return;
     }
 
+    console.log(`📝 [migrations] Found ${sqlFiles.length} migration(s) to process`);
+
     for (const file of sqlFiles) {
       const filePath = path.join(migrationsDir, file);
       const sql = fs.readFileSync(filePath, 'utf-8');
@@ -26,9 +37,15 @@ export async function runMigrations() {
         await pool.query(sql);
         console.log(`✅ [migrations] Completed: ${file}`);
       } catch (error: any) {
-        if (error.message?.includes('already exists') || error.code === '42P07') {
-          console.log(`⏭️  [migrations] Skipped (already applied): ${file}`);
+        const errorCode = error.code;
+        const errorMsg = error.message || '';
+
+        // Ignore only "already exists" errors
+        if (errorCode === '42P07' || errorMsg.includes('already exists')) {
+          console.log(`⏭️  [migrations] Skipped (already exists): ${file}`);
         } else {
+          console.error(`❌ [migrations] Error in ${file}:`, error.message);
+          console.error('❌ [migrations] Full error:', error);
           throw error;
         }
       }
