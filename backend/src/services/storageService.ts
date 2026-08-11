@@ -1,7 +1,4 @@
-import WebSocket from 'ws';
 import { createClient } from '@supabase/supabase-js';
-
-(global as any).WebSocket = WebSocket;
 
 if (!process.env.SUPABASE_URL) {
   throw new Error('❌ SUPABASE_URL environment variable is not set');
@@ -15,11 +12,7 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
-    realtime: {
-      params: {
-        eventsPerSecond: 0,
-      },
-    },
+    realtime: false,
     global: {
       fetch: fetch,
       headers: {},
