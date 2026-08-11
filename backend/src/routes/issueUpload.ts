@@ -46,6 +46,25 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
 
     console.log(`📦 [issueUpload] Starting upload for issue ${issue_number}/${year}`);
 
+    // Create issue record FIRST (so logging steps can reference it)
+    console.log(`💾 [issueUpload] Creating issue record...`);
+    const createQuery = `
+      INSERT INTO issues (id, issue_number, month, year, pdf_status)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *
+    `;
+
+    const result = await pool.query(createQuery, [
+      issueId,
+      issue_number,
+      month || null,
+      year,
+      'PROCESSING',
+    ]);
+
+    const issue = result.rows[0];
+    console.log(`✅ [issueUpload] Issue record created: ${issueId}`);
+
     // Log step: received file
     await pdfProcessingService.logProcessingStep(
       issueId,
@@ -65,27 +84,12 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
     await storageService.uploadPDF(filename, req.file.buffer, req.file.mimetype);
     const pdfUrl = storageService.getPublicUrl(`pdfs/${filename}`);
 
-    // Create issue record in database
-    console.log(`💾 [issueUpload] Creating issue record...`);
-    const createQuery = `
-      INSERT INTO issues (id, issue_number, month, year, pdf_url, pdf_filename, pdf_size_bytes, total_pages, pdf_status)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING *
-    `;
-
-    const result = await pool.query(createQuery, [
-      issueId,
-      issue_number,
-      month || null,
-      year,
-      pdfUrl,
-      filename,
-      req.file.size,
-      metadata.pages,
-      'COMPLETED',
-    ]);
-
-    const issue = result.rows[0];
+    // Update issue with PDF details - need to use direct SQL for pdf_url
+    console.log(`🔄 [issueUpload] Updating issue with PDF metadata...`);
+    await pool.query(
+      `UPDATE issues SET pdf_url = $1, pdf_filename = $2, pdf_size_bytes = $3, total_pages = $4, pdf_status = $5, upload_completed_at = NOW(), updated_at = NOW() WHERE id = $6`,
+      [pdfUrl, filename, req.file.size, metadata.pages, 'COMPLETED', issueId]
+    );
 
     // Log step: completed
     await pdfProcessingService.logProcessingStep(
