@@ -49,34 +49,51 @@ export class PageExtractionService {
 
           // Convert canvas to PNG buffer
           const pageBuffer = canvas.toBuffer('image/png');
+          console.log(`📦 [pageExtraction] Page ${pageNum} buffer size: ${pageBuffer.length} bytes`);
 
-          // Upload to Supabase Storage
+          // Upload to Supabase Storage (MUST succeed before continuing)
           const filename = `issue-${issueNumber}-${year}-page-${pageNum}.png`;
           const storagePath = `pages/${filename}`;
 
-          await storageService.uploadPageImage(filename, pageBuffer, 'image/png');
+          try {
+            console.log(`⏳ [pageExtraction] Uploading page ${pageNum}...`);
+            await storageService.uploadPageImage(filename, pageBuffer, 'image/png');
+            console.log(`✅ [pageExtraction] Page ${pageNum} uploaded to storage`);
+          } catch (uploadError) {
+            console.error(`❌ [pageExtraction] FAILED to upload page ${pageNum}:`, uploadError);
+            throw uploadError; // Re-throw to stop processing this page
+          }
+
+          // Only get URL and create DB record AFTER successful upload
           const pageUrl = storageService.getPublicUrl(storagePath);
+          console.log(`🔗 [pageExtraction] Page ${pageNum} URL: ${pageUrl}`);
 
           // Create flipbook page record
-          const pageRecord = await pdfProcessingService.createFlipbookPage(
-            issueId,
-            pageNum,
-            storagePath,
-            pageUrl, // Use page image URL as thumbnail
-            pageUrl, // Use page image URL for mobile
-            pageUrl  // Use page image URL for desktop
-          );
+          try {
+            const pageRecord = await pdfProcessingService.createFlipbookPage(
+              issueId,
+              pageNum,
+              storagePath,
+              pageUrl,
+              pageUrl,
+              pageUrl
+            );
+            console.log(`📝 [pageExtraction] Page ${pageNum} database record created`);
 
-          console.log(`✅ [pageExtraction] Page ${pageNum} extracted and saved`);
+            extractedPages.push({
+              page_number: pageNum,
+              storage_path: storagePath,
+              url: pageUrl,
+              id: pageRecord.id,
+            });
 
-          extractedPages.push({
-            page_number: pageNum,
-            storage_path: storagePath,
-            url: pageUrl,
-            id: pageRecord.id,
-          });
+            console.log(`✅ [pageExtraction] Page ${pageNum} completed`);
+          } catch (dbError) {
+            console.error(`❌ [pageExtraction] FAILED to create DB record for page ${pageNum}:`, dbError);
+            throw dbError;
+          }
         } catch (pageError) {
-          console.error(`❌ [pageExtraction] Error extracting page ${pageNum}:`, pageError);
+          console.error(`❌ [pageExtraction] Error processing page ${pageNum}:`, pageError);
           // Continue with next page instead of failing entire extraction
         }
       }

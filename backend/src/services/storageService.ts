@@ -29,19 +29,30 @@ export class StorageService {
   async uploadPDF(filename: string, buffer: Buffer, contentType: string = 'application/pdf') {
     try {
       console.log(`📤 [storageService] Uploading ${filename} to ${BUCKET_NAME} bucket`);
+      console.log(`   Size: ${buffer.length} bytes, Type: ${contentType}`);
+
+      // Ensure buffer is properly typed for Supabase
+      const uploadBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
 
       const { data, error } = await supabase.storage
         .from(BUCKET_NAME)
-        .upload(`pdfs/${filename}`, buffer, {
+        .upload(`pdfs/${filename}`, uploadBuffer, {
           contentType,
           upsert: false,
+          duplex: 'half',
         });
 
       if (error) {
+        console.error(`   ❌ Supabase error: ${error.message}`, error);
         throw new Error(`Failed to upload PDF: ${error.message}`);
       }
 
+      if (!data) {
+        throw new Error('Upload succeeded but no data returned from Supabase');
+      }
+
       console.log(`✅ [storageService] PDF uploaded: ${filename}`);
+      console.log(`   Path: pdfs/${filename}`);
       return data;
     } catch (error) {
       console.error(`❌ [storageService] Upload failed:`, error);
@@ -55,19 +66,30 @@ export class StorageService {
   async uploadPageImage(filename: string, buffer: Buffer, contentType: string = 'image/png') {
     try {
       console.log(`📤 [storageService] Uploading page image: ${filename}`);
+      console.log(`   Bucket: ${BUCKET_NAME}, Size: ${buffer.length} bytes, Type: ${contentType}`);
+
+      // Ensure buffer is properly typed for Supabase
+      const uploadBuffer = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
 
       const { data, error } = await supabase.storage
         .from(BUCKET_NAME)
-        .upload(`pages/${filename}`, buffer, {
+        .upload(`pages/${filename}`, uploadBuffer, {
           contentType,
           upsert: false,
+          duplex: 'half',
         });
 
       if (error) {
+        console.error(`   ❌ Supabase error: ${error.message}`, error);
         throw new Error(`Failed to upload page image: ${error.message}`);
       }
 
+      if (!data) {
+        throw new Error('Upload succeeded but no data returned from Supabase');
+      }
+
       console.log(`✅ [storageService] Page image uploaded: ${filename}`);
+      console.log(`   Path: pages/${filename}`);
       return data;
     } catch (error) {
       console.error(`❌ [storageService] Page upload failed:`, error);
