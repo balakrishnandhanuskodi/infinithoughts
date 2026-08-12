@@ -34,8 +34,8 @@ export class PageExtractionService {
     try {
       console.log(`📄 [pageExtraction] Starting page extraction for issue ${issueNumber}/${year}`);
 
-      // Load PDF from buffer
-      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+      // Load PDF from buffer (convert Buffer to Uint8Array for PDF.js compatibility)
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
       const pageCount = pdf.numPages;
 
       console.log(`📄 [pageExtraction] PDF has ${pageCount} pages`);
