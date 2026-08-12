@@ -137,15 +137,17 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
     console.log(`✅ [issueUpload] Issue created successfully: ${issueId}`);
 
     res.status(201).json({
-      id: issue.id,
-      issue_number: issue.issue_number,
-      month: issue.month,
-      year: issue.year,
-      pdf_url: issue.pdf_url,
-      total_pages: issue.total_pages,
-      pdf_status: issue.pdf_status,
-      created_at: issue.created_at,
-      message: 'PDF uploaded successfully. Pages are ready for flipbook viewer.',
+      id: issueId,
+      issue_number,
+      month: month || null,
+      year,
+      pdf_url: pdfUrl,
+      pdf_filename: filename,
+      pdf_size_bytes: req.file.size,
+      total_pages: metadata.pages,
+      pdf_status: 'COMPLETED',
+      created_at: new Date().toISOString(),
+      message: 'PDF uploaded successfully. Pages are being extracted for flipbook viewer.',
     });
   } catch (error: any) {
     console.error(`❌ [issueUpload] Upload failed:`, error);
