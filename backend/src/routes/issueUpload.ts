@@ -105,47 +105,61 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
     pageExtractionService
       .extractPagesAsImages(req.file.buffer, issueId, issue_number, year)
       .then(async (result) => {
-        console.log(`✅ [issueUpload] Page extraction completed: ${result.extractedPages.length} pages`);
-        // Update issue status to COMPLETED after pages are extracted
-        await pool.query(
-          `UPDATE issues SET pdf_status = 'COMPLETED', updated_at = NOW() WHERE id = $1`,
-          [issueId]
-        );
-        await pdfProcessingService.logProcessingStep(
-          issueId,
-          'PAGES_EXTRACTED',
-          'COMPLETED',
-          `Extracted ${result.extractedPages.length} pages from PDF`
-        );
+        try {
+          console.log(`✅ [issueUpload] Page extraction completed: ${result.extractedPages.length} pages`);
+          // Update issue status to COMPLETED after pages are extracted
+          await pool.query(
+            `UPDATE issues SET pdf_status = 'COMPLETED', updated_at = NOW() WHERE id = $1`,
+            [issueId]
+          );
+          await pdfProcessingService.logProcessingStep(
+            issueId,
+            'PAGES_EXTRACTED',
+            'COMPLETED',
+            `Extracted ${result.extractedPages.length} pages from PDF`
+          );
+        } catch (logError) {
+          console.error(`❌ [issueUpload] Error logging success:`, logError);
+        }
       })
       .catch(async (error) => {
         console.error(`❌ [issueUpload] Page extraction failed:`, error);
-        // Update issue status to FAILED if extraction fails
-        await pool.query(
-          `UPDATE issues SET pdf_status = 'FAILED', processing_error = $1, updated_at = NOW() WHERE id = $2`,
-          [error.message, issueId]
-        );
-        await pdfProcessingService.logProcessingStep(
-          issueId,
-          'PAGES_EXTRACTION_FAILED',
-          'FAILED',
-          undefined,
-          error.message
-        );
+        if (error instanceof Error) {
+          console.error(`   Message: ${error.message}`);
+          console.error(`   Stack: ${error.stack}`);
+        }
+        try {
+          // Update issue status to FAILED if extraction fails
+          await pool.query(
+            `UPDATE issues SET pdf_status = 'FAILED', processing_error = $1, updated_at = NOW() WHERE id = $2`,
+            [error instanceof Error ? error.message : String(error), issueId]
+          );
+          await pdfProcessingService.logProcessingStep(
+            issueId,
+            'PAGES_EXTRACTION_FAILED',
+            'FAILED',
+            undefined,
+            error instanceof Error ? error.message : String(error)
+          );
+        } catch (logError) {
+          console.error(`❌ [issueUpload] Failed to log extraction error:`, logError);
+        }
       });
 
     console.log(`✅ [issueUpload] Issue created successfully: ${issueId}`);
 
     res.status(201).json({
-      id: issue.id,
-      issue_number: issue.issue_number,
-      month: issue.month,
-      year: issue.year,
-      pdf_url: issue.pdf_url,
-      total_pages: issue.total_pages,
-      pdf_status: issue.pdf_status,
-      created_at: issue.created_at,
-      message: 'PDF uploaded successfully. Pages are ready for flipbook viewer.',
+      id: issueId,
+      issue_number,
+      month: month || null,
+      year,
+      pdf_url: pdfUrl,
+      pdf_filename: filename,
+      pdf_size_bytes: req.file.size,
+      total_pages: metadata.pages,
+      pdf_status: 'COMPLETED',
+      created_at: new Date().toISOString(),
+      message: 'PDF uploaded successfully. Pages are being extracted for flipbook viewer.',
     });
   } catch (error: any) {
     console.error(`❌ [issueUpload] Upload failed:`, error);

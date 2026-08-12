@@ -1,11 +1,25 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { createCanvas } from 'canvas';
+import path from 'path';
 import storageService from './storageService';
 import pdfProcessingService from './pdfProcessingService';
 
-// Set up PDF.js worker
-const pdfjsWorker = require('pdfjs-dist/build/pdf.worker.js');
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+// Set up PDF.js worker - use require.resolve for reliable path resolution
+try {
+  const pdfjsWorkerPath = require.resolve('pdfjs-dist/build/pdf.worker.js');
+  console.log(`📄 [pageExtraction] Setting PDF.js worker: ${pdfjsWorkerPath}`);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerPath;
+} catch (err) {
+  console.error(`❌ [pageExtraction] Failed to resolve PDF.js worker:`, err);
+  // Fallback: try to set it anyway
+  try {
+    const fallbackPath = path.join(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.js');
+    console.log(`📄 [pageExtraction] Using fallback worker path: ${fallbackPath}`);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = fallbackPath;
+  } catch (fallbackErr) {
+    console.error(`❌ [pageExtraction] Failed to set fallback worker:`, fallbackErr);
+  }
+}
 
 export class PageExtractionService {
   /**
@@ -48,34 +62,51 @@ export class PageExtractionService {
 
           // Convert canvas to PNG buffer
           const pageBuffer = canvas.toBuffer('image/png');
+          console.log(`📦 [pageExtraction] Page ${pageNum} buffer size: ${pageBuffer.length} bytes`);
 
-          // Upload to Supabase Storage
+          // Upload to Supabase Storage (MUST succeed before continuing)
           const filename = `issue-${issueNumber}-${year}-page-${pageNum}.png`;
           const storagePath = `pages/${filename}`;
 
-          await storageService.uploadPageImage(filename, pageBuffer, 'image/png');
+          try {
+            console.log(`⏳ [pageExtraction] Uploading page ${pageNum}...`);
+            await storageService.uploadPageImage(filename, pageBuffer, 'image/png');
+            console.log(`✅ [pageExtraction] Page ${pageNum} uploaded to storage`);
+          } catch (uploadError) {
+            console.error(`❌ [pageExtraction] FAILED to upload page ${pageNum}:`, uploadError);
+            throw uploadError; // Re-throw to stop processing this page
+          }
+
+          // Only get URL and create DB record AFTER successful upload
           const pageUrl = storageService.getPublicUrl(storagePath);
+          console.log(`🔗 [pageExtraction] Page ${pageNum} URL: ${pageUrl}`);
 
           // Create flipbook page record
-          const pageRecord = await pdfProcessingService.createFlipbookPage(
-            issueId,
-            pageNum,
-            storagePath,
-            pageUrl, // Use page image URL as thumbnail
-            pageUrl, // Use page image URL for mobile
-            pageUrl  // Use page image URL for desktop
-          );
+          try {
+            const pageRecord = await pdfProcessingService.createFlipbookPage(
+              issueId,
+              pageNum,
+              storagePath,
+              pageUrl,
+              pageUrl,
+              pageUrl
+            );
+            console.log(`📝 [pageExtraction] Page ${pageNum} database record created`);
 
-          console.log(`✅ [pageExtraction] Page ${pageNum} extracted and saved`);
+            extractedPages.push({
+              page_number: pageNum,
+              storage_path: storagePath,
+              url: pageUrl,
+              id: pageRecord.id,
+            });
 
-          extractedPages.push({
-            page_number: pageNum,
-            storage_path: storagePath,
-            url: pageUrl,
-            id: pageRecord.id,
-          });
+            console.log(`✅ [pageExtraction] Page ${pageNum} completed`);
+          } catch (dbError) {
+            console.error(`❌ [pageExtraction] FAILED to create DB record for page ${pageNum}:`, dbError);
+            throw dbError;
+          }
         } catch (pageError) {
-          console.error(`❌ [pageExtraction] Error extracting page ${pageNum}:`, pageError);
+          console.error(`❌ [pageExtraction] Error processing page ${pageNum}:`, pageError);
           // Continue with next page instead of failing entire extraction
         }
       }

@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 
-// v1.0.1 - Phase 2 PDF Upload with Issue Routes and Migrations
+// v1.0.2 - Phase 2 PDF Upload with Issue Routes and Page Extraction Live
 
 // Load env FIRST, before anything else
 const envPath = path.resolve(__dirname, '../.env');
@@ -103,13 +103,13 @@ app.get('/status', (req, res) => {
     apiRouter.use('/articles', articleRoutes);
     console.log('✅ [index.ts] Article routes mounted at /api/articles');
 
-    // Admin routes
-    apiRouter.use('/admin', adminRoutes);
-    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
-
-    // Issue upload routes
+    // Issue upload routes (mount FIRST, before general admin routes)
     apiRouter.use('/admin/issues/upload', issueUploadRoutes);
     console.log('✅ [index.ts] Issue upload routes mounted at /api/admin/issues/upload');
+
+    // Admin routes (general - catches remaining /admin/* routes)
+    apiRouter.use('/admin', adminRoutes);
+    console.log('✅ [index.ts] Admin routes mounted at /api/admin');
 
     // Welcome message
     apiRouter.get('/', (req, res) => {
