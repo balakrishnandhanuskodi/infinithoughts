@@ -101,6 +101,7 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
     );
 
     // Extract pages asynchronously (don't wait for completion)
+    console.log(`⚙️  [issueUpload] CHECKPOINT 1: About to start page extraction...`);
     console.log(`⚙️  [issueUpload] Starting page extraction (async)...`);
     pageExtractionService
       .extractPagesAsImages(req.file.buffer, issueId, issue_number, year)
