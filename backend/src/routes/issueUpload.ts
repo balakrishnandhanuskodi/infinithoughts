@@ -105,33 +105,45 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
     pageExtractionService
       .extractPagesAsImages(req.file.buffer, issueId, issue_number, year)
       .then(async (result) => {
-        console.log(`✅ [issueUpload] Page extraction completed: ${result.extractedPages.length} pages`);
-        // Update issue status to COMPLETED after pages are extracted
-        await pool.query(
-          `UPDATE issues SET pdf_status = 'COMPLETED', updated_at = NOW() WHERE id = $1`,
-          [issueId]
-        );
-        await pdfProcessingService.logProcessingStep(
-          issueId,
-          'PAGES_EXTRACTED',
-          'COMPLETED',
-          `Extracted ${result.extractedPages.length} pages from PDF`
-        );
+        try {
+          console.log(`✅ [issueUpload] Page extraction completed: ${result.extractedPages.length} pages`);
+          // Update issue status to COMPLETED after pages are extracted
+          await pool.query(
+            `UPDATE issues SET pdf_status = 'COMPLETED', updated_at = NOW() WHERE id = $1`,
+            [issueId]
+          );
+          await pdfProcessingService.logProcessingStep(
+            issueId,
+            'PAGES_EXTRACTED',
+            'COMPLETED',
+            `Extracted ${result.extractedPages.length} pages from PDF`
+          );
+        } catch (logError) {
+          console.error(`❌ [issueUpload] Error logging success:`, logError);
+        }
       })
       .catch(async (error) => {
         console.error(`❌ [issueUpload] Page extraction failed:`, error);
-        // Update issue status to FAILED if extraction fails
-        await pool.query(
-          `UPDATE issues SET pdf_status = 'FAILED', processing_error = $1, updated_at = NOW() WHERE id = $2`,
-          [error.message, issueId]
-        );
-        await pdfProcessingService.logProcessingStep(
-          issueId,
-          'PAGES_EXTRACTION_FAILED',
-          'FAILED',
-          undefined,
-          error.message
-        );
+        if (error instanceof Error) {
+          console.error(`   Message: ${error.message}`);
+          console.error(`   Stack: ${error.stack}`);
+        }
+        try {
+          // Update issue status to FAILED if extraction fails
+          await pool.query(
+            `UPDATE issues SET pdf_status = 'FAILED', processing_error = $1, updated_at = NOW() WHERE id = $2`,
+            [error instanceof Error ? error.message : String(error), issueId]
+          );
+          await pdfProcessingService.logProcessingStep(
+            issueId,
+            'PAGES_EXTRACTION_FAILED',
+            'FAILED',
+            undefined,
+            error instanceof Error ? error.message : String(error)
+          );
+        } catch (logError) {
+          console.error(`❌ [issueUpload] Failed to log extraction error:`, logError);
+        }
       });
 
     console.log(`✅ [issueUpload] Issue created successfully: ${issueId}`);

@@ -4,9 +4,22 @@ import path from 'path';
 import storageService from './storageService';
 import pdfProcessingService from './pdfProcessingService';
 
-// Set up PDF.js worker
-const pdfjsWorkerPath = path.join(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.js');
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerPath;
+// Set up PDF.js worker - use require.resolve for reliable path resolution
+try {
+  const pdfjsWorkerPath = require.resolve('pdfjs-dist/build/pdf.worker.js');
+  console.log(`📄 [pageExtraction] Setting PDF.js worker: ${pdfjsWorkerPath}`);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerPath;
+} catch (err) {
+  console.error(`❌ [pageExtraction] Failed to resolve PDF.js worker:`, err);
+  // Fallback: try to set it anyway
+  try {
+    const fallbackPath = path.join(__dirname, '../../node_modules/pdfjs-dist/build/pdf.worker.js');
+    console.log(`📄 [pageExtraction] Using fallback worker path: ${fallbackPath}`);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = fallbackPath;
+  } catch (fallbackErr) {
+    console.error(`❌ [pageExtraction] Failed to set fallback worker:`, fallbackErr);
+  }
+}
 
 export class PageExtractionService {
   /**
