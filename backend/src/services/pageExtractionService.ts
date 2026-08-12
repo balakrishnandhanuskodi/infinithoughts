@@ -4,6 +4,14 @@ import path from 'path';
 import storageService from './storageService';
 import pdfProcessingService from './pdfProcessingService';
 
+// Make canvas available globally for PDF.js to access
+try {
+  (globalThis as any).canvas = require('canvas');
+  console.log(`📄 [pageExtraction] Canvas available globally for PDF.js`);
+} catch (err) {
+  console.warn(`⚠️  [pageExtraction] Failed to set global canvas:`, err);
+}
+
 // Set up PDF.js worker - use require.resolve for reliable path resolution
 try {
   const pdfjsWorkerPath = require.resolve('pdfjs-dist/build/pdf.worker.js');
@@ -20,6 +28,9 @@ try {
     console.error(`❌ [pageExtraction] Failed to set fallback worker:`, fallbackErr);
   }
 }
+
+// Note: PDF.js will attempt to use canvas for rendering
+// Canvas is imported at the top of this file and available globally
 
 export class PageExtractionService {
   /**
