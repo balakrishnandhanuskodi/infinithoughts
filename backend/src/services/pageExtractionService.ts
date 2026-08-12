@@ -21,6 +21,14 @@ try {
   }
 }
 
+// Pre-cache canvas module to prevent runtime resolution issues with PDF.js
+try {
+  require.cache[require.resolve('canvas')] = require.cache[require.resolve('canvas')] || { exports: require('canvas') };
+  console.log(`📄 [pageExtraction] Canvas module cached for PDF.js access`);
+} catch (err) {
+  console.warn(`⚠️  [pageExtraction] Could not pre-cache canvas module:`, err);
+}
+
 export class PageExtractionService {
   /**
    * Extract pages from PDF buffer and save as images
