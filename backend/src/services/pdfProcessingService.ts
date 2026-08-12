@@ -125,6 +125,62 @@ export class PDFProcessingService {
   }
 
   /**
+   * Batch create flipbook page entries (CRITICAL FIX #4: Improve database performance)
+   */
+  async createFlipbookPagesBatch(
+    pages: Array<{
+      issueId: string;
+      pageNumber: number;
+      storagePath: string;
+      thumbnailUrl?: string;
+      mobileUrl?: string;
+      desktopUrl?: string;
+    }>
+  ): Promise<{ ids: string[] }> {
+    if (pages.length === 0) {
+      return { ids: [] };
+    }
+
+    // Build multi-value INSERT query
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    let paramIndex = 1;
+
+    const ids = pages.map(() => uuidv4());
+
+    pages.forEach((page, idx) => {
+      placeholders.push(
+        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3}, $${paramIndex + 4}, $${paramIndex + 5}, $${paramIndex + 6})`
+      );
+
+      values.push(
+        ids[idx],
+        page.issueId,
+        page.pageNumber,
+        page.storagePath,
+        page.thumbnailUrl || null,
+        page.mobileUrl || null,
+        page.desktopUrl || null
+      );
+
+      paramIndex += 7;
+    });
+
+    const query = `
+      INSERT INTO flipbook_pages
+        (id, issue_id, page_number, storage_path, thumbnail_url, mobile_url, desktop_url)
+      VALUES ${placeholders.join(', ')}
+      RETURNING id
+    `;
+
+    console.log(`📝 [pdfProcessing] Batch inserting ${pages.length} flipbook page records...`);
+    const result = await pool.query(query, values);
+    console.log(`✅ [pdfProcessing] Batch inserted ${result.rows.length} page records`);
+
+    return { ids: result.rows.map(r => r.id) };
+  }
+
+  /**
    * Get flipbook pages for an issue
    */
   async getFlipbookPages(issueId: string): Promise<any[]> {
