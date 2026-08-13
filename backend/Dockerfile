@@ -6,7 +6,7 @@ WORKDIR /app
 # build-essential includes make, gcc, g++, etc.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3 \
-    libcairo2-dev libjpeg-dev libpango-1.0-dev libgif-dev libpixman-1-dev \
+    libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev libpixman-1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend package files (context is already ./backend)
