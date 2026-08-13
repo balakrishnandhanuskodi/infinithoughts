@@ -6,7 +6,7 @@ WORKDIR /app
 # Using Debian-based slim image has better native module support than Alpine
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 make g++ \
-    libcairo2-dev libjpeg-dev libpango-1.0-0 libpango-cairo-1.0-0 \
+    libcairo2-dev libjpeg-dev libpango-1.0-dev \
     libgif-dev libpixman-1-dev \
     && rm -rf /var/lib/apt/lists/*
 
