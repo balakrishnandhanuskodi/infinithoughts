@@ -2,12 +2,11 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Install build dependencies for native modules (canvas, etc.)
-# Using Debian-based slim image has better native module support than Alpine
+# Install build-essential and canvas dependencies
+# build-essential includes make, gcc, g++, etc.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 make g++ \
-    libcairo2-dev libjpeg-dev libpango-1.0-dev \
-    libgif-dev libpixman-1-dev \
+    build-essential python3 \
+    libcairo2-dev libjpeg-dev libpango-1.0-dev libgif-dev libpixman-1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy workspace root package.json and lock file so npm understands monorepo structure
