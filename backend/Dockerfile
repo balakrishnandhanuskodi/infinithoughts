@@ -14,7 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY package.json ./
 
 # Install dependencies
-RUN npm ci
+# Use npm install instead of npm ci since package-lock.json doesn't exist in backend context
+RUN npm install
 
 # Copy backend source code
 COPY . .
