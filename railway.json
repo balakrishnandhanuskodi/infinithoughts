@@ -1,7 +1,6 @@
 {
   "$schema": "https://railway.app/schema.json",
   "build": {
-    "builder": "DOCKER",
     "buildCommand": "npm install && npm run build --workspace=@infinithoughts/backend"
   },
   "deploy": {
