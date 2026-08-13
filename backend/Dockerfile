@@ -1,18 +1,23 @@
-FROM node:22-alpine
+FROM node:22-slim
 
 WORKDIR /app
 
-# Copy workspace root package.json and lock file so npm understands monorepo structure
-COPY package.json package-lock.json ./
+# Install build-essential and canvas dependencies
+# build-essential includes make, gcc, g++, etc.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential python3 \
+    libcairo2-dev libjpeg-dev libpango-1.0-dev libgif-dev libpixman-1-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy backend package files
-COPY backend/package.json backend/package-lock.json ./backend/
+# Copy backend package files (context is already ./backend)
+# Note: package-lock.json only exists at repo root, not in backend directory
+COPY package.json ./
 
-# Install dependencies with workspace context
-RUN npm ci --workspace=backend
+# Install dependencies
+RUN npm ci
 
 # Copy backend source code
-COPY backend ./backend
+COPY . .
 
 # Expose port
 EXPOSE 3001
