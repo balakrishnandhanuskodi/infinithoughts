@@ -10,10 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend package files (context is already ./backend)
-COPY package.json package-lock.json ./
+COPY package.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies (use npm install since package-lock.json may not be available in backend context)
+RUN npm install && npm rebuild
 
 # Copy backend source code
 COPY . .
