@@ -10,9 +10,11 @@ const UPLOAD_RETRY_DELAY_MS = 1000;
 const MAX_HEAP_THRESHOLD = 0.85; // 85% of max heap = trigger GC
 const EXTRACTION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per extraction
 
-// Make canvas available globally for PDF.js to access
+// Ensure canvas is available globally for PDF.js to access
 try {
+  require.cache[require.resolve('canvas')] = require.cache[require.resolve('canvas')] || require('canvas');
   (globalThis as any).canvas = require('canvas');
+  (globalThis as any).createCanvas = createCanvas;
   console.log(`📄 [pageExtraction] Canvas available globally for PDF.js`);
 } catch (err) {
   console.warn(`⚠️  [pageExtraction] Failed to set global canvas:`, err);
@@ -178,12 +180,12 @@ export class PageExtractionService {
           const pageBuffer = canvas.toBuffer('image/png');
           console.log(`📦 [pageExtraction] Page ${pageNum} buffer size: ${(pageBuffer.length / 1024).toFixed(2)}KB`);
 
-          // CRITICAL FIX #1: Explicitly clean up canvas memory
+          // CRITICAL FIX #1: Gentle canvas cleanup to free memory without breaking module state
           try {
             const ctx = context as any;
+            // Clear the canvas but don't zero dimensions (keeps module state intact)
             ctx?.clearRect?.(0, 0, canvas.width, canvas.height);
-            (canvas as any).width = 0;
-            (canvas as any).height = 0;
+            // Let canvas object be garbage collected naturally
           } catch (cleanupErr) {
             console.warn(`⚠️  [pageExtraction] Canvas cleanup warning for page ${pageNum}:`, cleanupErr);
           }

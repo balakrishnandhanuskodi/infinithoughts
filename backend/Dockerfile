@@ -6,17 +6,14 @@ WORKDIR /app
 # build-essential includes make, gcc, g++, etc.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential python3 \
-    libcairo2-dev libjpeg-dev libpango1.0-dev libgif-dev libpixman-1-dev \
+    libcairo2-dev libjpeg-dev libpango-1.0-dev libgif-dev libpixman-1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend package files (context is already ./backend)
-# Note: package-lock.json only exists at repo root, not in backend directory
-COPY package.json ./
+COPY package.json package-lock.json ./
 
 # Install dependencies
-# Use npm install instead of npm ci since package-lock.json doesn't exist in backend context
-# Force rebuild of native modules (canvas) to ensure proper compilation
-RUN npm install && npm rebuild
+RUN npm ci
 
 # Copy backend source code
 COPY . .
