@@ -1,6 +1,5 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 import { createCanvas } from 'canvas';
-import path from 'path';
 import storageService from './storageService';
 import pdfProcessingService from './pdfProcessingService';
 
@@ -74,9 +73,27 @@ const uploadWithRetry = async (
   throw lastError || new Error(`Failed to upload page ${pageNum} after ${maxRetries} attempts`);
 };
 
+// PDF.js's built-in NodeCanvasFactory lazily calls require('canvas') while
+// processing image-heavy pages. Supply a factory backed by the module imported
+// above so all canvas allocation uses the API process's known-good binding.
+const canvasFactory = {
+  create(width: number, height: number) {
+    const canvas = createCanvas(width, height);
+    return { canvas, context: canvas.getContext('2d') };
+  },
+  reset(canvasAndContext: { canvas: ReturnType<typeof createCanvas> }, width: number, height: number) {
+    canvasAndContext.canvas.width = width;
+    canvasAndContext.canvas.height = height;
+  },
+  destroy(canvasAndContext: { canvas: ReturnType<typeof createCanvas> }) {
+    canvasAndContext.canvas.width = 0;
+    canvasAndContext.canvas.height = 0;
+  },
+};
+
 // Note: PDF.js will attempt to use canvas for rendering
 // Canvas is imported at the top of this file and available globally
-// Workers are disabled per-document via disableWorker option in getDocument call
+// Both canvasFactory and disableWorker: true provide defense-in-depth protection
 
 export class PageExtractionService {
   /**
@@ -116,9 +133,10 @@ export class PageExtractionService {
       console.log(`📄 [pageExtraction] Starting page extraction for issue ${issueNumber}/${year}`);
 
       // Load PDF from buffer (convert Buffer to Uint8Array for PDF.js compatibility)
-      // disableWorker: true ensures canvas rendering on main thread without worker threads
+      // Both canvasFactory and disableWorker: true provide canvas module protection
       const pdf = await pdfjsLib.getDocument({
         data: new Uint8Array(buffer),
+        canvasFactory,
         disableWorker: true
       } as any).promise;
       const pageCount = pdf.numPages;
