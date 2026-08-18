@@ -74,14 +74,9 @@ const uploadWithRetry = async (
   throw lastError || new Error(`Failed to upload page ${pageNum} after ${maxRetries} attempts`);
 };
 
-// Disable PDF.js workers to ensure canvas is available on main thread
-// Workers don't have access to the canvas module, causing "Cannot find module 'canvas'" errors
-// during parallel page rendering. Single-threaded rendering ensures canvas works reliably.
-console.log(`📄 [pageExtraction] Disabling PDF.js workers for canvas compatibility`);
-(pdfjsLib.GlobalWorkerOptions as any).workerSrc = null;
-
 // Note: PDF.js will attempt to use canvas for rendering
 // Canvas is imported at the top of this file and available globally
+// Workers are disabled per-document via disableWorker option in getDocument call
 
 export class PageExtractionService {
   /**
@@ -121,7 +116,11 @@ export class PageExtractionService {
       console.log(`📄 [pageExtraction] Starting page extraction for issue ${issueNumber}/${year}`);
 
       // Load PDF from buffer (convert Buffer to Uint8Array for PDF.js compatibility)
-      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise;
+      // disableWorker: true ensures canvas rendering on main thread without worker threads
+      const pdf = await pdfjsLib.getDocument({
+        data: new Uint8Array(buffer),
+        disableWorker: true
+      } as any).promise;
       const pageCount = pdf.numPages;
 
       console.log(`📄 [pageExtraction] PDF has ${pageCount} pages`);
