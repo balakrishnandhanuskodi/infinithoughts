@@ -9,6 +9,71 @@ const UPLOAD_RETRY_DELAY_MS = 1000;
 const MAX_HEAP_THRESHOLD = 0.85; // 85% of max heap = trigger GC
 const EXTRACTION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per extraction
 
+// Polyfill: DOMMatrix for advanced PDF rendering (SVG, transformations, etc.)
+// Some PDFs use features that require DOMMatrix API which doesn't exist in Node.js
+if (!(globalThis as any).DOMMatrix) {
+  class DOMMatrix {
+    a: number = 1;
+    b: number = 0;
+    c: number = 0;
+    d: number = 1;
+    e: number = 0;
+    f: number = 0;
+
+    constructor(matrix?: string | number[]) {
+      if (Array.isArray(matrix) && matrix.length >= 6) {
+        [this.a, this.b, this.c, this.d, this.e, this.f] = matrix;
+      }
+    }
+
+    multiply(other: DOMMatrix): DOMMatrix {
+      const result = new DOMMatrix();
+      result.a = this.a * other.a + this.c * other.b;
+      result.b = this.b * other.a + this.d * other.b;
+      result.c = this.a * other.c + this.c * other.d;
+      result.d = this.b * other.c + this.d * other.d;
+      result.e = this.a * other.e + this.c * other.f + this.e;
+      result.f = this.b * other.e + this.d * other.f + this.f;
+      return result;
+    }
+
+    translate(x: number, y: number): DOMMatrix {
+      const result = new DOMMatrix();
+      Object.assign(result, this);
+      result.e += x;
+      result.f += y;
+      return result;
+    }
+
+    scale(x: number, y: number = x): DOMMatrix {
+      const result = new DOMMatrix();
+      result.a = this.a * x;
+      result.b = this.b * x;
+      result.c = this.c * y;
+      result.d = this.d * y;
+      result.e = this.e;
+      result.f = this.f;
+      return result;
+    }
+
+    rotate(angle: number): DOMMatrix {
+      const rad = (angle * Math.PI) / 180;
+      const cos = Math.cos(rad);
+      const sin = Math.sin(rad);
+      const result = new DOMMatrix();
+      result.a = this.a * cos + this.c * sin;
+      result.b = this.b * cos + this.d * sin;
+      result.c = this.a * -sin + this.c * cos;
+      result.d = this.b * -sin + this.d * cos;
+      result.e = this.e;
+      result.f = this.f;
+      return result;
+    }
+  }
+  (globalThis as any).DOMMatrix = DOMMatrix;
+  console.log(`📐 [pageExtraction] DOMMatrix polyfill installed for advanced PDF rendering`);
+}
+
 // Ensure canvas is available globally for PDF.js to access
 try {
   require.cache[require.resolve('canvas')] = require.cache[require.resolve('canvas')] || require('canvas');
