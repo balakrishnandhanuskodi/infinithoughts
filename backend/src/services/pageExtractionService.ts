@@ -78,7 +78,7 @@ const uploadWithRetry = async (
 // Workers don't have access to the canvas module, causing "Cannot find module 'canvas'" errors
 // during parallel page rendering. Single-threaded rendering ensures canvas works reliably.
 console.log(`📄 [pageExtraction] Disabling PDF.js workers for canvas compatibility`);
-pdfjsLib.GlobalWorkerOptions.workerSrc = null;
+(pdfjsLib.GlobalWorkerOptions as any).workerSrc = null;
 
 // Note: PDF.js will attempt to use canvas for rendering
 // Canvas is imported at the top of this file and available globally
