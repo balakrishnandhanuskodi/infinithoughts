@@ -75,7 +75,9 @@ export class StorageService {
         .from(BUCKET_NAME)
         .upload(`pages/${filename}`, uploadBuffer, {
           contentType,
-          upsert: false,
+          // Filenames are deterministic per issue/page. Retrying an extraction
+          // must replace a partial prior result rather than fail with HTTP 409.
+          upsert: true,
           duplex: 'half',
         });
 
