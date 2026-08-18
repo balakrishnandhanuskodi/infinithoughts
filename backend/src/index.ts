@@ -1,3 +1,7 @@
+// CRITICAL: Import polyfills FIRST, before anything else, to ensure DOMMatrix
+// and other polyfills are available before PDF.js initializes
+import './utils/polyfills';
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
