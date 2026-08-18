@@ -18,8 +18,11 @@ RUN npm install && npm rebuild
 # Copy backend source code
 COPY . .
 
+# Build TypeScript
+RUN npm run build
+
 # Expose port
 EXPOSE 3001
 
-# Start development server in backend directory
-CMD ["npm", "run", "dev", "--workspace=backend"]
+# Start backend server
+CMD ["npm", "start"]
