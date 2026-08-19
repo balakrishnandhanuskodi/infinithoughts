@@ -139,10 +139,6 @@ export class PageExtractionService {
     try {
       console.log(`📄 [pageExtraction] Starting page extraction for issue ${issueNumber}/${year}`);
 
-      // Configure PDF.js to avoid SVG rendering which requires full DOM support
-      // Set global options before loading
-      (pdfjsLib as any).GlobalWorkerOptions = (pdfjsLib as any).GlobalWorkerOptions || {};
-
       // Load PDF from buffer (convert Buffer to Uint8Array for PDF.js compatibility)
       // Both canvasFactory and disableWorker: true provide canvas module protection
       const pdf = await pdfjsLib.getDocument({

@@ -39,14 +39,27 @@ if (!(globalThis as any).DOMMatrix) {
     set f(v: number) { this.m42 = v; }
 
     constructor(matrix?: string | number[]) {
-      if (Array.isArray(matrix) && matrix.length >= 6) {
-        const [m11, m12, m21, m22, m41, m42] = matrix;
-        this.m11 = m11 !== undefined ? m11 : 1;
-        this.m12 = m12 !== undefined ? m12 : 0;
-        this.m21 = m21 !== undefined ? m21 : 0;
-        this.m22 = m22 !== undefined ? m22 : 1;
-        this.m41 = m41 !== undefined ? m41 : 0;
-        this.m42 = m42 !== undefined ? m42 : 0;
+      if (Array.isArray(matrix)) {
+        if (matrix.length >= 6) {
+          this.m11 = matrix[0] ?? 1;
+          this.m12 = matrix[1] ?? 0;
+          this.m21 = matrix[2] ?? 0;
+          this.m22 = matrix[3] ?? 1;
+          this.m41 = matrix[4] ?? 0;
+          this.m42 = matrix[5] ?? 0;
+          if (matrix.length >= 16) {
+            this.m13 = matrix[6] ?? 0;
+            this.m14 = matrix[7] ?? 0;
+            this.m23 = matrix[8] ?? 0;
+            this.m24 = matrix[9] ?? 0;
+            this.m31 = matrix[10] ?? 0;
+            this.m32 = matrix[11] ?? 0;
+            this.m33 = matrix[12] ?? 1;
+            this.m34 = matrix[13] ?? 0;
+            this.m43 = matrix[14] ?? 0;
+            this.m44 = matrix[15] ?? 1;
+          }
+        }
       }
     }
 
