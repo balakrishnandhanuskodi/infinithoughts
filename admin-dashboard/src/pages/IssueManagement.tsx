@@ -1,5 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { PDFUploadForm } from '../components/PDFUploadForm';
+import { apiConfig } from '../config/api';
 
 interface Issue {
   id: string;
@@ -12,10 +15,35 @@ interface Issue {
 }
 
 export default function IssueManagement() {
+  const navigate = useNavigate();
   const [issues, setIssues] = useState<Issue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchIssues();
+  }, []);
+
+  const fetchIssues = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await axios.get(`${apiConfig.baseURL}/admin/issues`);
+      setIssues(response.data.issues || []);
+    } catch (err: any) {
+      console.error('Error fetching issues:', err);
+      setError('Failed to load issues');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleUploadSuccess = (newIssue: Issue) => {
     setIssues((prev) => [newIssue, ...prev]);
+  };
+
+  const handleViewFlipbook = (issueId: string) => {
+    navigate(`/issues/${issueId}/flipbook`);
   };
 
   return (
@@ -31,7 +59,15 @@ export default function IssueManagement() {
       <div className="bg-white rounded-lg shadow p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Uploaded Issues</h3>
 
-        {issues.length === 0 ? (
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-red-800">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-gray-600">Loading issues...</p>
+        ) : issues.length === 0 ? (
           <p className="text-gray-600">No issues uploaded yet. Upload a PDF above to get started!</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -63,7 +99,10 @@ export default function IssueManagement() {
                   </p>
                 </div>
                 {issue.pdf_status === 'COMPLETED' && (
-                  <button className="mt-3 w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+                  <button
+                    onClick={() => handleViewFlipbook(issue.id)}
+                    className="mt-3 w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
+                  >
                     📖 View Flipbook
                   </button>
                 )}
