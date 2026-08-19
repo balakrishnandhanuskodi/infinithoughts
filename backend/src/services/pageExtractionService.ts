@@ -139,6 +139,13 @@ export class PageExtractionService {
     try {
       console.log(`📄 [pageExtraction] Starting page extraction for issue ${issueNumber}/${year}`);
 
+      // Ensure DOMMatrix polyfill is fully initialized before starting extraction
+      if (!(globalThis as any).DOMMatrix) {
+        console.error(`❌ [pageExtraction] CRITICAL: DOMMatrix polyfill not found at extraction start!`);
+        throw new Error('DOMMatrix polyfill not initialized');
+      }
+      console.log(`✅ [pageExtraction] DOMMatrix polyfill verified at extraction start`);
+
       // Configure PDF.js to avoid SVG rendering which requires full DOM support
       // Set global options before loading
       (pdfjsLib as any).GlobalWorkerOptions = (pdfjsLib as any).GlobalWorkerOptions || {};
@@ -193,135 +200,163 @@ export class PageExtractionService {
       }
 
       for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-        try {
-          console.log(`📸 [pageExtraction] Extracting page ${pageNum}/${pageCount}...`);
+        // Special handling for Page 1: retry with backoff if DOMMatrix timeout occurs
+        const maxPage1Retries = pageNum === 1 ? 2 : 1;
+        let pageExtractionSucceeded = false;
 
-          // Log page extraction start
+        for (let page1Attempt = 1; page1Attempt <= maxPage1Retries; page1Attempt++) {
+          if (pageExtractionSucceeded) break;
+
           try {
-            await pdfProcessingService.logProcessingStep(
-              issueId,
-              `PAGE_${pageNum}_EXTRACTING`,
-              'PROCESSING',
-              `Extracting page ${pageNum}/${pageCount}`
-            );
-          } catch (logErr) {
-            console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} start:`, logErr);
-          }
+            if (page1Attempt > 1) {
+              console.log(`⏳ [pageExtraction] Page 1 retry ${page1Attempt}/${maxPage1Retries} (waiting for polyfill)...`);
+              await delay(500); // Wait for polyfill to stabilize
+            }
 
-          checkAndCleanMemory();
+            console.log(`📸 [pageExtraction] Extracting page ${pageNum}/${pageCount}...`);
 
-          const page = await pdf.getPage(pageNum);
-          const viewport = page.getViewport({ scale: 2 }); // 2x scale for better quality
+            // Log page extraction start
+            try {
+              await pdfProcessingService.logProcessingStep(
+                issueId,
+                `PAGE_${pageNum}_EXTRACTING`,
+                'PROCESSING',
+                `Extracting page ${pageNum}/${pageCount}`
+              );
+            } catch (logErr) {
+              console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} start:`, logErr);
+            }
 
-          // Create canvas
-          const canvas = createCanvas(viewport.width, viewport.height);
-          const context = canvas.getContext('2d');
+            checkAndCleanMemory();
 
-          // Render page to canvas with fallback for SVG rendering issues
-          let renderError: Error | null = null;
-          try {
-            await page.render({
-              canvasContext: context,
-              viewport: viewport,
-            }).promise;
-          } catch (err) {
-            renderError = err as Error;
-            const errorMsg = renderError.message || String(renderError);
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({ scale: 2 }); // 2x scale for better quality
 
-            // If SVG/DOMMatrix error, retry with simpler rendering options
-            if (errorMsg.includes('DOMMatrix') || errorMsg.includes('SVG')) {
-              console.warn(`⚠️  [pageExtraction] SVG rendering failed on page ${pageNum}, retrying with text extraction...`);
-              try {
-                // Fallback: Try rendering without annotations
-                await page.render({
-                  canvasContext: context,
-                  viewport: viewport,
-                  intent: 'display' as any
-                }).promise;
-                renderError = null; // Recovery successful
-                console.log(`✅ [pageExtraction] Page ${pageNum} recovered with fallback rendering`);
-              } catch (fallbackErr) {
-                // If fallback also fails, this page cannot be extracted
-                throw renderError;
+            // Create canvas
+            const canvas = createCanvas(viewport.width, viewport.height);
+            const context = canvas.getContext('2d');
+
+            // Render page to canvas with fallback for SVG rendering issues
+            let renderError: Error | null = null;
+            try {
+              await page.render({
+                canvasContext: context,
+                viewport: viewport,
+              }).promise;
+            } catch (err) {
+              renderError = err as Error;
+              const errorMsg = renderError.message || String(renderError);
+
+              // If SVG/DOMMatrix error, retry with simpler rendering options
+              if (errorMsg.includes('DOMMatrix') || errorMsg.includes('SVG')) {
+                console.warn(`⚠️  [pageExtraction] SVG rendering failed on page ${pageNum}, retrying with text extraction...`);
+                try {
+                  // Fallback: Try rendering without annotations
+                  await page.render({
+                    canvasContext: context,
+                    viewport: viewport,
+                    intent: 'display' as any
+                  }).promise;
+                  renderError = null; // Recovery successful
+                  console.log(`✅ [pageExtraction] Page ${pageNum} recovered with fallback rendering`);
+                } catch (fallbackErr) {
+                  // If fallback also fails and this is Page 1, retry the whole thing
+                  if (pageNum === 1 && page1Attempt < maxPage1Retries) {
+                    console.warn(`⚠️  [pageExtraction] Page 1 fallback failed, retrying entire page...`);
+                    continue; // Retry the loop
+                  }
+                  throw renderError;
+                }
+              } else {
+                throw err;
               }
+            }
+
+            // Convert canvas to PNG buffer
+            const pageBuffer = canvas.toBuffer('image/png');
+            console.log(`📦 [pageExtraction] Page ${pageNum} buffer size: ${(pageBuffer.length / 1024).toFixed(2)}KB`);
+
+            // CRITICAL FIX #1: Gentle canvas cleanup to free memory without breaking module state
+            try {
+              const ctx = context as any;
+              // Clear the canvas but don't zero dimensions (keeps module state intact)
+              ctx?.clearRect?.(0, 0, canvas.width, canvas.height);
+              // Let canvas object be garbage collected naturally
+            } catch (cleanupErr) {
+              console.warn(`⚠️  [pageExtraction] Canvas cleanup warning for page ${pageNum}:`, cleanupErr);
+            }
+
+            // Upload to Supabase Storage with retry logic (CRITICAL FIX #2)
+            const filename = `issue-${issueNumber}-${year}-page-${pageNum}.png`;
+            const storagePath = `pages/${filename}`;
+
+            try {
+              console.log(`⏳ [pageExtraction] Uploading page ${pageNum}...`);
+              await uploadWithRetry(filename, pageBuffer, 'image/png', pageNum);
+              console.log(`✅ [pageExtraction] Page ${pageNum} uploaded to storage`);
+
+              // Log page upload success
+              try {
+                await pdfProcessingService.logProcessingStep(
+                  issueId,
+                  `PAGE_${pageNum}_UPLOADED`,
+                  'COMPLETED',
+                  `Page ${pageNum} extracted and uploaded successfully`
+                );
+              } catch (logErr) {
+                console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} upload:`, logErr);
+              }
+
+              // Only store URL and prepare for batch DB insert AFTER successful upload
+              const pageUrl = storageService.getPublicUrl(storagePath);
+              console.log(`🔗 [pageExtraction] Page ${pageNum} URL: ${pageUrl}`);
+
+              pageUrlMap.set(pageNum, { url: pageUrl, storagePath });
+
+              // Queue for batch DB insert (CRITICAL FIX #4)
+              pendingDbInserts.push({
+                issueId,
+                pageNumber: pageNum,
+                storagePath,
+                thumbnailUrl: pageUrl,
+                mobileUrl: pageUrl,
+                desktopUrl: pageUrl,
+              });
+
+              pageExtractionSucceeded = true; // Mark this page as successfully extracted
+            } catch (uploadError) {
+              const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
+              console.error(`❌ [pageExtraction] FAILED to upload page ${pageNum}: ${errorMsg}`);
+
+              // Log page upload failure
+              try {
+                await pdfProcessingService.logProcessingStep(
+                  issueId,
+                  `PAGE_${pageNum}_FAILED`,
+                  'FAILED',
+                  undefined,
+                  errorMsg
+                );
+              } catch (logErr) {
+                console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} error:`, logErr);
+              }
+
+              failedPages.push({ pageNum, error: errorMsg });
+              pageExtractionSucceeded = true; // Mark as processed even though it failed (don't retry)
+            }
+          } catch (pageError) {
+            const errorMsg = pageError instanceof Error ? pageError.message : String(pageError);
+
+            // For Page 1 with DOMMatrix errors, retry is handled by the outer retry loop
+            if (pageNum === 1 && page1Attempt < maxPage1Retries && errorMsg.includes('DOMMatrix')) {
+              console.warn(`⚠️  [pageExtraction] Page 1 DOMMatrix error on attempt ${page1Attempt}, will retry...`);
+              // Continue to next retry attempt (outer loop handles this)
             } else {
-              throw err;
+              console.error(`❌ [pageExtraction] Error processing page ${pageNum}: ${errorMsg}`);
+              failedPages.push({ pageNum, error: errorMsg });
+              pageExtractionSucceeded = true; // Mark as processed (don't retry)
             }
           }
-
-          // Convert canvas to PNG buffer
-          const pageBuffer = canvas.toBuffer('image/png');
-          console.log(`📦 [pageExtraction] Page ${pageNum} buffer size: ${(pageBuffer.length / 1024).toFixed(2)}KB`);
-
-          // CRITICAL FIX #1: Gentle canvas cleanup to free memory without breaking module state
-          try {
-            const ctx = context as any;
-            // Clear the canvas but don't zero dimensions (keeps module state intact)
-            ctx?.clearRect?.(0, 0, canvas.width, canvas.height);
-            // Let canvas object be garbage collected naturally
-          } catch (cleanupErr) {
-            console.warn(`⚠️  [pageExtraction] Canvas cleanup warning for page ${pageNum}:`, cleanupErr);
-          }
-
-          // Upload to Supabase Storage with retry logic (CRITICAL FIX #2)
-          const filename = `issue-${issueNumber}-${year}-page-${pageNum}.png`;
-          const storagePath = `pages/${filename}`;
-
-          try {
-            console.log(`⏳ [pageExtraction] Uploading page ${pageNum}...`);
-            await uploadWithRetry(filename, pageBuffer, 'image/png', pageNum);
-            console.log(`✅ [pageExtraction] Page ${pageNum} uploaded to storage`);
-
-            // Log page upload success
-            try {
-              await pdfProcessingService.logProcessingStep(
-                issueId,
-                `PAGE_${pageNum}_UPLOADED`,
-                'COMPLETED',
-                `Page ${pageNum} extracted and uploaded successfully`
-              );
-            } catch (logErr) {
-              console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} upload:`, logErr);
-            }
-
-            // Only store URL and prepare for batch DB insert AFTER successful upload
-            const pageUrl = storageService.getPublicUrl(storagePath);
-            console.log(`🔗 [pageExtraction] Page ${pageNum} URL: ${pageUrl}`);
-
-            pageUrlMap.set(pageNum, { url: pageUrl, storagePath });
-
-            // Queue for batch DB insert (CRITICAL FIX #4)
-            pendingDbInserts.push({
-              issueId,
-              pageNumber: pageNum,
-              storagePath,
-              thumbnailUrl: pageUrl,
-              mobileUrl: pageUrl,
-              desktopUrl: pageUrl,
-            });
-          } catch (uploadError) {
-            const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
-            console.error(`❌ [pageExtraction] FAILED to upload page ${pageNum}: ${errorMsg}`);
-
-            // Log page upload failure
-            try {
-              await pdfProcessingService.logProcessingStep(
-                issueId,
-                `PAGE_${pageNum}_FAILED`,
-                'FAILED',
-                undefined,
-                errorMsg
-              );
-            } catch (logErr) {
-              console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} error:`, logErr);
-            }
-
-            failedPages.push({ pageNum, error: errorMsg });
-          }
-        } catch (pageError) {
-          const errorMsg = pageError instanceof Error ? pageError.message : String(pageError);
-          console.error(`❌ [pageExtraction] Error processing page ${pageNum}: ${errorMsg}`);
-          failedPages.push({ pageNum, error: errorMsg });
         }
       }
 
