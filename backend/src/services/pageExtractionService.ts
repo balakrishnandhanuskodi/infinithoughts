@@ -179,9 +179,35 @@ export class PageExtractionService {
 
       // PHASE 1: Extract and upload all pages
       console.log(`⏳ [pageExtraction] PHASE 1: Extracting and uploading ${pageCount} pages...`);
+
+      // Log progress: extraction starting
+      try {
+        await pdfProcessingService.logProcessingStep(
+          issueId,
+          'EXTRACTION_STARTED',
+          'PROCESSING',
+          `Starting extraction of ${pageCount} pages`
+        );
+      } catch (err) {
+        console.warn(`⚠️  [pageExtraction] Failed to log extraction start:`, err);
+      }
+
       for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
         try {
           console.log(`📸 [pageExtraction] Extracting page ${pageNum}/${pageCount}...`);
+
+          // Log page extraction start
+          try {
+            await pdfProcessingService.logProcessingStep(
+              issueId,
+              `PAGE_${pageNum}_EXTRACTING`,
+              'PROCESSING',
+              `Extracting page ${pageNum}/${pageCount}`
+            );
+          } catch (logErr) {
+            console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} start:`, logErr);
+          }
+
           checkAndCleanMemory();
 
           const page = await pdf.getPage(pageNum);
@@ -246,6 +272,18 @@ export class PageExtractionService {
             await uploadWithRetry(filename, pageBuffer, 'image/png', pageNum);
             console.log(`✅ [pageExtraction] Page ${pageNum} uploaded to storage`);
 
+            // Log page upload success
+            try {
+              await pdfProcessingService.logProcessingStep(
+                issueId,
+                `PAGE_${pageNum}_UPLOADED`,
+                'COMPLETED',
+                `Page ${pageNum} extracted and uploaded successfully`
+              );
+            } catch (logErr) {
+              console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} upload:`, logErr);
+            }
+
             // Only store URL and prepare for batch DB insert AFTER successful upload
             const pageUrl = storageService.getPublicUrl(storagePath);
             console.log(`🔗 [pageExtraction] Page ${pageNum} URL: ${pageUrl}`);
@@ -264,6 +302,20 @@ export class PageExtractionService {
           } catch (uploadError) {
             const errorMsg = uploadError instanceof Error ? uploadError.message : String(uploadError);
             console.error(`❌ [pageExtraction] FAILED to upload page ${pageNum}: ${errorMsg}`);
+
+            // Log page upload failure
+            try {
+              await pdfProcessingService.logProcessingStep(
+                issueId,
+                `PAGE_${pageNum}_FAILED`,
+                'FAILED',
+                undefined,
+                errorMsg
+              );
+            } catch (logErr) {
+              console.warn(`⚠️  [pageExtraction] Failed to log page ${pageNum} error:`, logErr);
+            }
+
             failedPages.push({ pageNum, error: errorMsg });
           }
         } catch (pageError) {

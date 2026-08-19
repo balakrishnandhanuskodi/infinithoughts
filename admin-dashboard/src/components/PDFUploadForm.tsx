@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { apiConfig } from '../config/api';
+import { ExtractionProgress } from './ExtractionProgress';
 
 interface PDFUploadFormProps {
   onUploadSuccess?: (issue: any) => void;
@@ -21,6 +22,8 @@ export const PDFUploadForm: React.FC<PDFUploadFormProps> = ({
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [issueId, setIssueId] = useState<string | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -48,10 +51,24 @@ export const PDFUploadForm: React.FC<PDFUploadFormProps> = ({
     }
   };
 
+  const handleExtractionComplete = () => {
+    setTimeout(() => {
+      setSuccess(false);
+      setShowProgress(false);
+      setFormData({
+        issue_number: '',
+        month: '',
+        year: new Date().getFullYear().toString(),
+      });
+      setIssueId(null);
+    }, 2000);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(false);
+    setShowProgress(false);
 
     if (!file) {
       setError('Please select a PDF file');
@@ -90,19 +107,16 @@ export const PDFUploadForm: React.FC<PDFUploadFormProps> = ({
       );
 
       setSuccess(true);
+      setIssueId(response.data.id);
+      setShowProgress(true);
       setFile(null);
-      setFormData({
-        issue_number: '',
-        month: '',
-        year: new Date().getFullYear().toString(),
-      });
 
       if (onUploadSuccess) {
         onUploadSuccess(response.data);
       }
 
-      // Reset form after 2 seconds
-      setTimeout(() => setSuccess(false), 2000);
+      // Keep form visible with progress - don't reset immediately
+      // Let user see extraction progress before clearing
     } catch (err: any) {
       const errorMessage = err.response?.data?.error || err.message || 'Upload failed';
       setError(errorMessage);
@@ -200,10 +214,16 @@ export const PDFUploadForm: React.FC<PDFUploadFormProps> = ({
         {/* Success Message */}
         {success && (
           <div style={styles.success}>
-            ✅ PDF uploaded successfully! {file?.name} processed with{' '}
-            <strong>multiple pages</strong> ready for flipbook viewer.
+            ✅ PDF uploaded successfully! Pages are being extracted...
           </div>
         )}
+
+        {/* Extraction Progress */}
+        <ExtractionProgress
+          issueId={issueId || ''}
+          visible={showProgress}
+          onExtractionComplete={handleExtractionComplete}
+        />
 
         {/* Submit Button */}
         <button

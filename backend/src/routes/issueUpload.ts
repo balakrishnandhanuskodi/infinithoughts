@@ -195,6 +195,93 @@ router.post('/', upload.single('pdf'), async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/admin/issues/:id/progress
+ * Get real-time extraction progress for an issue
+ */
+router.get('/:id/progress', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Get issue details
+    const issueQuery = `SELECT total_pages, pdf_status FROM issues WHERE id = $1`;
+    const issueResult = await pool.query(issueQuery, [id]);
+
+    if (issueResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
+    const issue = issueResult.rows[0];
+    const totalPages = issue.total_pages || 0;
+
+    // Get extraction progress from logs
+    const logsQuery = `
+      SELECT step, status, message, error, created_at
+      FROM pdf_processing_logs
+      WHERE issue_id = $1 AND (step LIKE 'PAGE_%' OR step = 'EXTRACTION_STARTED')
+      ORDER BY created_at ASC
+    `;
+    const logsResult = await pool.query(logsQuery, [id]);
+    const logs = logsResult.rows;
+
+    // Parse logs to build progress structure
+    const pageProgress: {
+      [key: number]: {
+        page_number: number;
+        status: 'pending' | 'extracting' | 'extracted' | 'failed';
+        error?: string;
+      };
+    } = {};
+
+    // Initialize all pages as pending
+    for (let i = 1; i <= totalPages; i++) {
+      pageProgress[i] = { page_number: i, status: 'pending' };
+    }
+
+    // Process logs to update page status
+    logs.forEach((log: any) => {
+      const match = log.step.match(/PAGE_(\d+)_(.+)/);
+      if (match) {
+        const pageNum = parseInt(match[1]);
+        const action = match[2];
+
+        if (action === 'EXTRACTING') {
+          pageProgress[pageNum].status = 'extracting';
+        } else if (action === 'UPLOADED') {
+          pageProgress[pageNum].status = 'extracted';
+        } else if (action === 'FAILED') {
+          pageProgress[pageNum].status = 'failed';
+          pageProgress[pageNum].error = log.error || log.message;
+        }
+      }
+    });
+
+    // Count extracted, failed, and extracting pages
+    let extractedCount = 0;
+    let failedCount = 0;
+    let extractingCount = 0;
+
+    Object.values(pageProgress).forEach((page: any) => {
+      if (page.status === 'extracted') extractedCount++;
+      if (page.status === 'failed') failedCount++;
+      if (page.status === 'extracting') extractingCount++;
+    });
+
+    res.json({
+      issue_id: id,
+      total_pages: totalPages,
+      extracted_pages: extractedCount,
+      failed_pages: failedCount,
+      extracting_pages: extractingCount,
+      pending_pages: totalPages - extractedCount - failedCount - extractingCount,
+      extraction_status: issue.pdf_status,
+      pages: Object.values(pageProgress),
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
  * GET /api/admin/issues/:id/pages
  * Get flipbook pages for an issue
  */
