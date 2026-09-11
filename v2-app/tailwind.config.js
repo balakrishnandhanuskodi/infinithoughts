@@ -5,7 +5,17 @@ module.exports = {
     './lib/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: '#2563eb',
+        secondary: '#7c3aed',
+      },
+    },
   },
-  plugins: [],
+  daisyui: {
+    themes: ['light', 'dark'],
+    styled: true,
+    base: true,
+  },
+  plugins: [require('daisyui')],
 }
