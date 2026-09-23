@@ -1,0 +1,34 @@
+# Supabase Project Configuration
+# This file is used by the Supabase CLI
+
+[project]
+# Replace with your actual project ID
+# project_id = "your-project-id"
+
+[api]
+# Generated API URL
+# max_body_size = 20 # in MB
+
+[db]
+# Version of PostgreSQL to use
+# postgres_version = "15"
+
+[realtime]
+enabled = true
+
+[vector]
+enabled = false
+
+[auth]
+# Phone auth settings
+enable_phone_signup = true
+enable_phone_autoconfirm = false
+
+# OAuth settings
+enable_oauth = true
+enable_google_oauth = true
+enable_apple_oauth = true
+enable_github_oauth = false
+
+[storage]
+file_size_limit = 52428800 # 50 MB in bytes
